@@ -26,7 +26,7 @@ The following versions of the **Phish Extractor** tool are currently supported w
 ## 🚨 Reporting a Vulnerability
 
 Please **do not** open a public issue for security vulnerabilities. Instead, contact me directly via email at:
-📧 **[Insert Your Email Here]**
+📧 **gurvin240@gmail.com**
 
 Or, you can reach out via my GitHub profile:
 🌐 **[https://github.com/gurvinny](https://github.com/gurvinny)**
