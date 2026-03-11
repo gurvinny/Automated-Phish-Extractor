@@ -17,6 +17,7 @@ Python : 3.10+
 from __future__ import annotations
 
 import argparse
+import base64
 import email
 import email.policy
 import hashlib
@@ -481,14 +482,20 @@ def extract_attachments(msg: EmailMessage) -> list[AttachmentInfo]:
         filename: str = part.get_filename() or "unnamed_attachment"
         content_type: str = part.get_content_type()
 
-        payload: bytes | str | None = part.get_payload(decode=True)
-        if payload is None:
+        raw_payload: Any = part.get_payload(decode=True)
+        if raw_payload is None:
             continue
-        if isinstance(payload, str):
-            payload = payload.encode("utf-8", errors="replace")
 
-        sha256_hash: str = hashlib.sha256(payload).hexdigest()
-        size: int = len(payload)
+        payload_bytes: bytes
+        if isinstance(raw_payload, str):
+            payload_bytes = raw_payload.encode("utf-8", errors="replace")
+        elif isinstance(raw_payload, bytes):
+            payload_bytes = raw_payload
+        else:
+            continue
+
+        sha256_hash: str = hashlib.sha256(payload_bytes).hexdigest()
+        size: int = len(payload_bytes)
 
         attachments.append(
             AttachmentInfo(
@@ -535,8 +542,6 @@ def query_virustotal_url(url: str) -> ThreatIntelResult:
         result.error = "VT_API_KEY not set"
         log.warning("Skipping VT lookup — API key not configured.")
         return result
-
-    import base64
 
     url_id: str = (
         base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
@@ -906,7 +911,7 @@ def report_to_markdown(report: ThreatReport) -> str:
     r = report  # alias for brevity
 
     lines: list[str] = [
-        f"# Phishing Email Analysis Report",
+        "# Phishing Email Analysis Report",
         "",
         f"**Analysis Timestamp:** {r.analysis_timestamp}  ",
         f"**Source File:** `{r.source_file}`  ",
@@ -916,8 +921,8 @@ def report_to_markdown(report: ThreatReport) -> str:
         "",
         "## 1 — Email Headers",
         "",
-        f"| Field | Value |",
-        f"|-------|-------|",
+        "| Field | Value |",
+        "|-------|-------|",
         f"| **Subject** | {r.headers.subject} |",
         f"| **From** | {defang_domain(r.headers.from_addr)} |",
         f"| **To** | {r.headers.to_addr} |",
@@ -927,8 +932,8 @@ def report_to_markdown(report: ThreatReport) -> str:
         "",
         "### Authentication Results",
         "",
-        f"| Check | Result |",
-        f"|-------|--------|",
+        "| Check | Result |",
+        "|-------|--------|",
         f"| **SPF** | `{r.headers.spf_result}` |",
         f"| **DKIM** | `{r.headers.dkim_result}` |",
         f"| **DMARC** | `{r.headers.dmarc_result}` |",
