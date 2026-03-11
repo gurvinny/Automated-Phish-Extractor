@@ -1,0 +1,22 @@
+title: DMARC Failure and Urgent Phishing Subject Detected
+id: e34f78d9-2e1c-4b5a-9f8e-7c6d5b4a3c2d
+status: experimental
+description: Detects email gateway logs where a DMARC failure is recorded and the subject contains a common phishing lure "URGENT: Your account has been temporarily restricted", matching our mock_phish.eml.
+author: gurvinny
+date: 2024/05/29
+logsource:
+    category: email
+    product: email_gateway
+detection:
+    selection_dmarc:
+        DMARC_Result: 'fail'
+    selection_subject:
+        Subject|contains: 'URGENT: Your account has been temporarily restricted'
+    condition: selection_dmarc and selection_subject
+falsepositives:
+    - Misconfigured internal domains with urgent legitimate notifications (rare).
+level: high
+tags:
+    - attack.initial_access
+    - attack.t1566.001
+    - phishing
