@@ -1,0 +1,21 @@
+# API Secrets
+.env
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environments
+venv/
+env/
+.venv/
+.env/
+
+# Stop accidental PII leaks by ignoring all raw email files
+*.eml
+*.msg
+
+# Except for explicit mock files in samples/
+!samples/*.eml
+!samples/*.msg
