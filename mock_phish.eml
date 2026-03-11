@@ -1,0 +1,56 @@
+Delivered-To: victim@yourcompany.com
+Return-Path: <bounces@evil-phishing-domain.net>
+Authentication-Results: mx.yourcompany.com;
+    spf=fail (domain of evil-phishing-domain.net does not designate 198.51.100.42 as permitted sender) smtp.mailfrom=bounces@evil-phishing-domain.net;
+    dkim=none (message not signed);
+    dmarc=fail (p=none sp=none dis=none) header.from=paypal-support.com
+Received: from mail.evil-phishing-domain.net (mail.evil-phishing-domain.net [198.51.100.42])
+    by mx.yourcompany.com with ESMTP id 12345abcd
+    for <victim@yourcompany.com>; Wed, 11 Mar 2026 10:00:00 -0400
+From: "PayPal Security" <alerts@paypal-support-update.com>
+To: victim@yourcompany.com
+Subject: URGENT: Your account has been temporarily restricted
+Date: Wed, 11 Mar 2026 10:00:00 -0400
+Message-ID: <9876543210@evil-phishing-domain.net>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_Boundary_12345_XYZ"
+
+------=_Boundary_12345_XYZ
+Content-Type: multipart/alternative; boundary="----=_Boundary_67890_ABC"
+
+------=_Boundary_67890_ABC
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Dear Customer,
+
+We noticed suspicious login attempts from IP address 203.0.113.85.
+Your account has been restricted. Please download the attached invoice
+and verify your information at:
+http://secure-update-billing-verification.com/login.php?session=8932
+
+Thank you,
+Security Team
+
+------=_Boundary_67890_ABC
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<html>
+<body>
+<p>Dear Customer,</p>
+<p>We noticed suspicious login attempts from IP address <strong>203.0.113.85</strong>.</p>
+<p>Your account has been restricted. Please download the attached invoice and verify your information at:</p>
+<p><a href="http://secure-update-billing-verification.com/login.php?session=8932">Update Your Account Here</a></p>
+<p>Thank you,<br>Security Team</p>
+</body>
+</html>
+------=_Boundary_67890_ABC--
+
+------=_Boundary_12345_XYZ
+Content-Type: application/pdf; name="Invoice_78291.pdf"
+Content-Disposition: attachment; filename="Invoice_78291.pdf"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyBhIGZha2UgbWFsaWNpb3VzIHBheWxvYWQgZm9yIHRlc3RpbmcgcHVycG9zZXMu
+------=_Boundary_12345_XYZ--
