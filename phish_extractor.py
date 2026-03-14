@@ -453,6 +453,26 @@ def defang_ip(ip: str) -> str:
     return ip.replace(".", "[.]")
 
 
+def safe_md(text: str | None) -> str:
+    """Sanitize text for safe inclusion in a Markdown table.
+
+    Replaces pipe characters and newlines to prevent Markdown injection
+    and table layout breakage. Handles None inputs safely.
+
+    Args:
+        text: The raw user-controlled string or None.
+
+    Returns:
+        A sanitized string safe for Markdown tables.
+    """
+    if text is None:
+        return "None"
+
+    # Replace pipes with the HTML entity equivalent so tables don't break.
+    # Replace newlines with spaces so rows don't wrap unexpectedly.
+    return str(text).replace("|", "&#124;").replace("\n", " ").replace("\r", "")
+
+
 # ===================================================================
 # 5. ATTACHMENT HANDLING
 # ===================================================================
@@ -923,12 +943,12 @@ def report_to_markdown(report: ThreatReport) -> str:
         "",
         "| Field | Value |",
         "|-------|-------|",
-        f"| **Subject** | {r.headers.subject} |",
-        f"| **From** | {defang_domain(r.headers.from_addr)} |",
-        f"| **To** | {r.headers.to_addr} |",
-        f"| **Date** | {r.headers.date} |",
-        f"| **Message-ID** | `{r.headers.message_id}` |",
-        f"| **Return-Path** | {defang_domain(r.headers.return_path)} |",
+        f"| **Subject** | {safe_md(r.headers.subject)} |",
+        f"| **From** | {safe_md(defang_domain(r.headers.from_addr))} |",
+        f"| **To** | {safe_md(r.headers.to_addr)} |",
+        f"| **Date** | {safe_md(r.headers.date)} |",
+        f"| **Message-ID** | `{safe_md(r.headers.message_id)}` |",
+        f"| **Return-Path** | {safe_md(defang_domain(r.headers.return_path))} |",
         "",
         "### Authentication Results",
         "",
@@ -1003,7 +1023,7 @@ def report_to_markdown(report: ThreatReport) -> str:
         lines.append("|----------|-------------|-------------|---------|")
         for att in r.attachments:
             lines.append(
-                f"| {att.filename} | {att.content_type} | "
+                f"| {safe_md(att.filename)} | {safe_md(att.content_type)} | "
                 f"{att.size_bytes:,} | `{att.sha256}` |"
             )
         lines.append("")
