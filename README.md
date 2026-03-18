@@ -4,7 +4,7 @@
 
 **Automated IOC Extraction & Threat Intelligence Reporter**
 
-[![Version](https://img.shields.io/badge/version-1.0-blue.svg?logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
+[![Version](https://img.shields.io/badge/version-1.0--beta-blue.svg?logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -114,7 +114,7 @@ To effectively bridge the gap between reactive analysis and proactive defense, t
 
 This project follows a versioned roadmap. See [ROADMAP.md](ROADMAP.md) for the full breakdown.
 
-### 🔧 Version 1.0 — Stabilisation & Hardening *(current)*
+### 🔧 Version 1.0 Beta — Stabilisation & Hardening *(current)*
 Focused on fixing known bugs, closing security gaps, and building a test suite before adding new features.
 
 | Category | Highlights |

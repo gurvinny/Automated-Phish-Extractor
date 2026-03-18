@@ -4,7 +4,7 @@
 
 **Planned fixes, enhancements, and future direction**
 
-[![Version 1](https://img.shields.io/badge/version-1.0-blue.svg?logo=github&logoColor=white)]()
+[![Version 1 Beta](https://img.shields.io/badge/version-1.0--beta-blue.svg?logo=github&logoColor=white)]()
 [![Version 2](https://img.shields.io/badge/version-2.0-orange.svg?logo=github&logoColor=white)]()
 [![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
@@ -17,9 +17,9 @@
 
 </div>
 
-## 📌 Version 1.0 — Stabilisation & Hardening
+## 📌 Version 1.0 Beta — Stabilisation & Hardening
 
-> Version 1 is the current release. The goal of this phase is to fix known bugs, close security gaps, and improve reliability before introducing new features.
+> Version 1.0 Beta is the current release. The goal of this phase is to fix known bugs, close security gaps, and improve reliability before introducing new features.
 
 ---
 
