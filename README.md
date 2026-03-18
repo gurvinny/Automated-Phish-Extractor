@@ -10,7 +10,7 @@
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![SOC Portfolio](https://img.shields.io/badge/Portfolio-SOC_Analyst-purple.svg)]()
-[![Roadmap](https://img.shields.io/badge/Roadmap-v2.0_planned-orange.svg)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
+[![Roadmap](https://img.shields.io/badge/Roadmap-v1.0_planned-orange.svg)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
 
 <p align="center">
   <em>Reducing SOC alert fatigue by automating the ingestion, parsing, and enrichment of malicious .eml files.</em>
