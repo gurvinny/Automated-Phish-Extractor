@@ -4,11 +4,13 @@
 
 **Automated IOC Extraction & Threat Intelligence Reporter**
 
+[![Version](https://img.shields.io/badge/version-1.0-blue.svg?logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![SOC Portfolio](https://img.shields.io/badge/Portfolio-SOC_Analyst-purple.svg)]()
+[![Roadmap](https://img.shields.io/badge/Roadmap-v2.0_planned-orange.svg)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
 
 <p align="center">
   <em>Reducing SOC alert fatigue by automating the ingestion, parsing, and enrichment of malicious .eml files.</em>
@@ -103,6 +105,36 @@ To effectively bridge the gap between reactive analysis and proactive defense, t
 
 - 🟡 **`yara_rule.yar`**: A YARA rule that hunts for the specific SHA256 hash and base64 encoded malicious payload of the fake invoice document attachment in our `mock_phish.eml` sample.
 - 🟠 **`sigma_rule.yml`**: A Sigma rule designed to detect email gateway logs where DMARC fails and the subject contains the classic phishing lure `"URGENT: Your account has been temporarily restricted"`. This can be integrated into SIEM platforms for real-time alerting.
+
+---
+
+---
+
+## 🗺️ Roadmap
+
+This project follows a versioned roadmap. See [ROADMAP.md](ROADMAP.md) for the full breakdown.
+
+### 🔧 Version 1.0 — Stabilisation & Hardening *(current)*
+Focused on fixing known bugs, closing security gaps, and building a test suite before adding new features.
+
+| Category | Highlights |
+|----------|------------|
+| 🐛 Bug Fixes | IPv6 regex, false positive IOC extraction, inconsistent defanging, risk scoring gaps |
+| 🔒 Security | API key leak prevention, file-size limits, attachment filename sanitisation |
+| ✨ Enhancements | Tracking pixel filtering, parallelised API enrichment |
+| 📚 Docs & Testing | pytest suite, `.env.example`, secrets-management guidance |
+
+### 🚀 Version 2.0 — Campaign Intelligence Platform *(planned)*
+The defining upgrade: **v1 analyzes one email, v2 analyzes a campaign.**
+
+| Category | Highlights |
+|----------|------------|
+| 🏗️ Architecture | Batch mode, async enrichment, IOC caching, installable package |
+| 🧠 Intelligence | Campaign clustering, WHOIS/domain age, URL unshortening, phishing lure scoring |
+| 🔗 Integrations | URLhaus, Shodan, MISP push, Webhook/API mode |
+| 📄 Output | HTML reports, STIX 2.1 export, GitHub Actions CI, Docker image |
+
+➡️ [View the full roadmap →](ROADMAP.md)
 
 ---
 
