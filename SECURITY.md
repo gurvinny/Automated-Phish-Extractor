@@ -6,46 +6,59 @@
 
 [![Security Policy](https://img.shields.io/badge/Security-Enabled-brightgreen.svg?logo=github&logoColor=white)]()
 [![Python Supported](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Bug Bounty](https://img.shields.io/badge/Bounty-None_Yet-lightgrey.svg)]()
+[![Vulnerability Reporting](https://img.shields.io/badge/Reporting-Private-red.svg)](mailto:gurvin240@gmail.com)
 
-</div>
+<p align="center">
+  Maintaining a secure environment for automated threat intelligence and SOC operations.
+</p>
 
 ---
 
+</div>
+
 ## 📅 Supported Versions
 
-The following versions of the **Phish Extractor** tool are currently supported with security updates. We rely on the core language features introduced in Python `3.10+`, and no earlier versions are supported.
+The following versions of **Phish Extractor** receive security updates. As this is a portfolio project, we focus on the latest stable release.
 
-| Version | Supported          | Python Version Required | Notes                      |
-| ------- | ------------------ | ----------------------- | -------------------------- |
-| `1.0.x` | :white_check_mark: | `3.10+`                 | Maintained                 |
-| `< 1.0` | :x:                | N/A                     | Unsupported legacy code    |
+| Version | Supported          | Python Version | Status                     |
+| ------- | ------------------ | -------------- | -------------------------- |
+| `1.0.x` | :white_check_mark: | `3.10+`        | Active Maintenance         |
+| `< 1.0` | :x:                | N/A            | Unsupported Legacy         |
 
 ---
 
 ## 🚨 Reporting a Vulnerability
 
-Please **do not** open a public issue for security vulnerabilities. Instead, contact me directly via email at:
-📧 **gurvin240@gmail.com**
+**Do not open public issues for security vulnerabilities.** If you discover a security bug (e.g., a way to bypass defanging, a credential leak risk, or a code execution flaw), please follow our **Responsible Disclosure** process:
 
-Or, you can reach out via my GitHub profile:
-🌐 **[https://github.com/gurvinny](https://github.com/gurvinny)**
+1. **Email directly:** Send a detailed report to **gurvin240@gmail.com**.
+2. **Include Details:** Provide a summary, steps to reproduce, and the potential impact.
+3. **Response:** I (@gurvinny) will acknowledge your report within 48 hours and coordinate a fix.
 
-I will do my best to acknowledge the vulnerability and respond as soon as possible.
+For general security *improvements* (like adding a new security feature), please follow the [CONTRIBUTING.md](CONTRIBUTING.md) process by opening an enhancement issue.
 
 ---
 
-## 🥷 Threat Model
+## 🥷 Threat Model & Operational Guidelines
 
-To ensure this tool is deployed and utilized securely within SOC environments, please observe the following threat models and operational guidelines:
+### ⚠️ Execution Context (Principle of Least Privilege)
+This script parses untrusted `.eml` files and performs network I/O. **Never run this tool as `Administrator` or `root`.**
+* **Best Practice:** Run in a dedicated virtual environment (`venv`) as a standard user.
+* **Isolation:** For high-stakes investigations, run the tool within a dedicated analysis VM or container to limit the potential "blast radius."
 
-### ⚠️ Execution Context
-This script interacts directly with external files (`.eml`, `.msg`, etc.) and performs network operations. Under no circumstances should this tool be run as an `Administrator`, `Root`, or any highly privileged user. Running it as a standard user in an isolated virtual environment limits the potential blast radius of accidental code execution or malicious behavior hidden within a malformed `.eml` file.
+### 🔑 Secret Management & Contribution
+We utilize a `.env` system for API keys. 
+* **Contributors:** Ensure `.env` is listed in your `.gitignore` before pushing code. 
+* **Reviewers:** Every Pull Request is screened for "secret leakage" using manual review and (ideally) automated hooks. 
+* **Leaked Keys:** If a key is accidentally committed, **rotate it immediately.**
 
-### 🔑 Secret Management
-This project utilizes a `.env` file to store sensitive external API keys (**VirusTotal**, **AbuseIPDB**).
-**Never commit your `.env` file to version control.**
-If an API key is leaked to a public repository, automated scanners (e.g., TruffleHog, GitGuardian) will likely extract and exploit it within minutes. Ensure that your `.gitignore` is properly configured before you push any code.
+### 📡 Operational Security (OPSEC)
+Querying external APIs (VirusTotal, AbuseIPDB) alerts third parties that an IOC is being investigated. 
+* **Beaconing Risk:** Attackers may monitor these services to see if their infrastructure has been "burned."
+* **Stealth Mode:** For sensitive investigations where OPSEC is critical, always use the `--skip-intel` flag.
 
-### 📡 Network Indicators
-Threat actors often monitor external scanning services like VirusTotal and AbuseIPDB. While `phish_extractor.py` limits risk by sending **file hashes** rather than raw attachments, submitting an IP, domain, or URL to these platforms inherently alerts the attacker that their infrastructure is being investigated (also known as a "beaconing" effect). For sensitive incidents where operational security (OPSEC) is paramount, **always run the tool with the `--skip-intel` flag.**
+---
+
+<div align="center">
+  <i>Security is a shared responsibility. Thank you for helping keep Phish Extractor safe.</i>
+</div>
