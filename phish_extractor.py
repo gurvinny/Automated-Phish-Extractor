@@ -820,7 +820,9 @@ def calculate_risk(
     """Derive an overall risk level from extracted signals.
 
     Scoring heuristic (intentionally simple and auditable):
-      * Any SPF/DKIM/DMARC *fail*  → +2 each
+      * SPF/DKIM/DMARC *fail*      → +2 each
+      * SPF *softfail*             → +1
+      * DMARC *quarantine*         → +1
       * Each malicious VT result   → +3
       * Each AbuseIPDB score ≥ 75  → +3
       * API errors (blind spots)   → +1 each
@@ -841,10 +843,14 @@ def calculate_risk(
 
     if headers.spf_result == "fail":
         score += 2
+    elif headers.spf_result == "softfail":
+        score += 1
     if headers.dkim_result == "fail":
         score += 2
     if headers.dmarc_result == "fail":
         score += 2
+    elif headers.dmarc_result == "quarantine":
+        score += 1
 
     for res in intel:
         if res.malicious:
