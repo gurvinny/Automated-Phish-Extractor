@@ -71,7 +71,23 @@ Copy the example environment file and fill in your keys:
 ```powershell
 copy .env.example .env
 ```
-Open `.env` in your editor and securely add your VirusTotal and AbuseIPDB API keys.
+
+> ⚠️ **Never commit your `.env` file.** It is listed in `.gitignore` to prevent accidental exposure.
+> If you accidentally push secrets, **rotate your API keys immediately** via the VirusTotal and AbuseIPDB dashboards — treat any exposed key as compromised.
+
+---
+
+## 🔒 Secrets Management
+
+- `.env` is excluded from version control via `.gitignore` — never remove this rule.
+- In CI/CD pipelines, use **GitHub Actions Secrets** (or your vault of choice) instead of `.env` files.
+- To proactively prevent secret leaks, consider adding a `pre-commit` hook using [`detect-secrets`](https://github.com/Yelp/detect-secrets) or [`gitleaks`](https://github.com/gitleaks/gitleaks):
+```bash
+pip install detect-secrets
+detect-secrets scan > .secrets.baseline
+```
+
+- If you ever accidentally commit a real API key, rotate it immediately — assume it is compromised.
 
 ---
 
