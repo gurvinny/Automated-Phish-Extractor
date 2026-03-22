@@ -12,7 +12,7 @@ def test_defang_domain():
 
 def test_defang_ip():
     assert defang_ip("8.8.8.8") == "8[.]8[.]8[.]8"
-    assert defang_ip("2001:db8::1") == "2001:db8::1" # IPv6 has no dots, should remain unchanged if no dots
+    assert defang_ip("2001:db8::1") == "2001:db8::1" # IPv6 without dots remains unchanged
     
     # But if mapped ipv4
     assert defang_ip("::ffff:192.168.1.1") == "::ffff:192[.]168[.]1[.]1"
