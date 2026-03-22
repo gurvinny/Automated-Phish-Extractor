@@ -103,6 +103,18 @@ DOMAIN_PATTERN: re.Pattern[str] = re.compile(
     r"[a-zA-Z]{2,63}\b"
 )
 
+# Common file extensions that DOMAIN_PATTERN can match as false-positive domains
+# (e.g. "login.php", "index.html" in email body text).
+_FILE_EXT_RE: re.Pattern[str] = re.compile(
+    r"\.(php\d?|s?html?|asp|aspx|cfm|cgi|pl|py|rb|jsp|do"
+    r"|js|ts|css|map"
+    r"|png|jpe?g|gif|svg|webp|ico|bmp|tiff?"
+    r"|pdf|docx?|xlsx?|pptx?|odt|rtf|txt|csv|xml|json|ya?ml|toml"
+    r"|zip|gz|tar|rar|7z|exe|dll|msi|dmg|pkg|deb|rpm"
+    r"|eml|msg|ics)$",
+    re.IGNORECASE,
+)
+
 IPV4_PATTERN: re.Pattern[str] = re.compile(
     r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}"
     r"(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"
@@ -353,6 +365,11 @@ def extract_iocs(text: str) -> IOCCollection:
     # because they are *internal* and cannot be threat-intel-checked.
     # Sending 192.168.x.x to VirusTotal adds noise and wastes API calls.
     ipv4s = {ip for ip in ipv4s if _is_routable_ipv4(ip)}
+
+    # Drop bare file-extension tokens (e.g. "login.php", "index.html") that
+    # DOMAIN_PATTERN can match as domain IOCs when they appear in body text
+    # without a preceding scheme.  These are never real hostnames.
+    raw_domains = {d for d in raw_domains if not _FILE_EXT_RE.search(d)}
 
     # Remove domains that are just parts of extracted URLs to avoid double-
     # counting.  We still keep them accessible via the URL list.
@@ -820,7 +837,9 @@ def calculate_risk(
     """Derive an overall risk level from extracted signals.
 
     Scoring heuristic (intentionally simple and auditable):
-      * Any SPF/DKIM/DMARC *fail*  → +2 each
+      * SPF/DKIM/DMARC *fail*      → +2 each
+      * SPF *softfail*             → +1
+      * DMARC *quarantine*         → +1
       * Each malicious VT result   → +3
       * Each AbuseIPDB score ≥ 75  → +3
       * API errors (blind spots)   → +1 each
@@ -841,10 +860,14 @@ def calculate_risk(
 
     if headers.spf_result == "fail":
         score += 2
+    elif headers.spf_result == "softfail":
+        score += 1
     if headers.dkim_result == "fail":
         score += 2
     if headers.dmarc_result == "fail":
         score += 2
+    elif headers.dmarc_result == "quarantine":
+        score += 1
 
     for res in intel:
         if res.malicious:

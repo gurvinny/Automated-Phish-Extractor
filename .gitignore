@@ -19,3 +19,6 @@ env/
 # Except for explicit mock files in samples/
 !samples/*.eml
 !samples/*.msg
+
+# Build artifacts and reports
+reports/
