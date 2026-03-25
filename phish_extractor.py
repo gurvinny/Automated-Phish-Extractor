@@ -458,6 +458,23 @@ def defang_domain(domain: str) -> str:
     return domain.replace(".", "[.]")
 
 
+def _defang_email(raw: str) -> str:
+    """Defang an email address by replacing dots in the domain only.
+
+    Args:
+        raw: A raw email string, optionally with display name.
+
+    Returns:
+        A defanged email string safe for sharing in reports.
+    """
+    from email.utils import parseaddr
+    _, addr = parseaddr(raw)
+    if "@" in addr:
+        local, domain = addr.split("@", 1)
+        return f"{local}@{defang_domain(domain)}"
+    return defang_domain(raw)
+
+
 def defang_ip(ip: str) -> str:
     """Defang an IP address for safe reporting.
 
@@ -967,11 +984,11 @@ def report_to_markdown(report: ThreatReport) -> str:
         "| Field | Value |",
         "|-------|-------|",
         f"| **Subject** | {safe_md(r.headers.subject)} |",
-        f"| **From** | {safe_md(defang_domain(r.headers.from_addr))} |",
-        f"| **To** | {safe_md(r.headers.to_addr)} |",
+        f"| **From** | {safe_md(_defang_email(r.headers.from_addr))} |",
+        f"| **To** | {safe_md(_defang_email(r.headers.to_addr))} |",
         f"| **Date** | {safe_md(r.headers.date)} |",
         f"| **Message-ID** | `{safe_md(r.headers.message_id)}` |",
-        f"| **Return-Path** | {safe_md(defang_domain(r.headers.return_path))} |",
+        f"| **Return-Path** | {safe_md(_defang_email(r.headers.return_path))} |",
         "",
         "### Authentication Results",
         "",
