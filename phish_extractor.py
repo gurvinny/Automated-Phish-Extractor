@@ -89,6 +89,22 @@ HTTP_TIMEOUT_SECONDS: int = 15
 MAX_EML_SIZE_MB: int = _positive_int_env("MAX_EML_SIZE_MB", 25)
 MAX_EML_SIZE_BYTES: int = MAX_EML_SIZE_MB * 1024 * 1024
 
+
+class SecretRedactionFilter(logging.Filter):
+    """Redact configured API keys from every log record."""
+
+    def __init__(self, secrets: list[str | None]) -> None:
+        super().__init__()
+        self._secrets = tuple(secret for secret in secrets if secret)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        for secret in self._secrets:
+            message = message.replace(secret, "[REDACTED]")
+        record.msg = message
+        record.args = ()
+        return True
+
 # ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
@@ -98,6 +114,10 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 log: logging.Logger = logging.getLogger("phish_extractor")
+_redaction_filter = SecretRedactionFilter([VT_API_KEY, ABUSEIPDB_API_KEY])
+for _handler in logging.getLogger().handlers:
+    _handler.addFilter(_redaction_filter)
+log.addFilter(_redaction_filter)
 
 # ---------------------------------------------------------------------------
 # Regex patterns for IOC extraction

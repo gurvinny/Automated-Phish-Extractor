@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import tempfile
@@ -65,6 +66,22 @@ class TestPhishExtractor(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(ValueError, "size limit"):
                     phish_extractor.parse_eml(Path(eml_file.name))
+
+    def test_secret_redaction_filter(self):
+        redactor = phish_extractor.SecretRedactionFilter(["vt-secret", "abuse-secret"])
+        record = logging.LogRecord(
+            name="test",
+            level=logging.DEBUG,
+            pathname=__file__,
+            lineno=1,
+            msg="headers=%s key=%s",
+            args=("vt-secret", "abuse-secret"),
+            exc_info=None,
+        )
+        redactor.filter(record)
+        self.assertNotIn("vt-secret", record.getMessage())
+        self.assertNotIn("abuse-secret", record.getMessage())
+        self.assertEqual(record.getMessage(), "headers=[REDACTED] key=[REDACTED]")
 
     @patch("phish_extractor.query_virustotal_url")
     @patch("phish_extractor.query_abuseipdb")
