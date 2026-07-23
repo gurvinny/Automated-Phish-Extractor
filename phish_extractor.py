@@ -516,7 +516,7 @@ def extract_attachments(msg: EmailMessage) -> list[AttachmentInfo]:
         if disposition not in ("attachment", "inline"):
             continue
 
-        filename: str = part.get_filename() or "unnamed_attachment"
+        filename: str = sanitize_attachment_filename(part.get_filename())
         content_type: str = part.get_content_type()
 
         raw_payload: Any = part.get_payload(decode=True)
@@ -551,6 +551,18 @@ def extract_attachments(msg: EmailMessage) -> list[AttachmentInfo]:
         )
 
     return attachments
+
+
+def sanitize_attachment_filename(filename: str | None) -> str:
+    """Return a safe display filename without path traversal components."""
+    if not filename:
+        return "unnamed_attachment"
+
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", "_", str(filename)).strip()
+    cleaned = re.split(r"[\\/]", cleaned)[-1]
+    if not cleaned or cleaned in {".", ".."}:
+        return "unnamed_attachment"
+    return cleaned[:255]
 
 
 # ===================================================================
