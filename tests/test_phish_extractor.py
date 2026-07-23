@@ -41,6 +41,20 @@ class TestPhishExtractor(unittest.TestCase):
         self.assertTrue(len(attach) > 0)
         self.assertEqual(attach[0].filename, "Invoice_78291.pdf")
 
+    def test_attachment_filename_is_sanitized(self):
+        self.assertEqual(
+            phish_extractor.sanitize_attachment_filename("../../dropper.exe"),
+            "dropper.exe",
+        )
+        self.assertEqual(
+            phish_extractor.sanitize_attachment_filename(r"C:\Users\Public\dropper.exe"),
+            "dropper.exe",
+        )
+        self.assertEqual(
+            phish_extractor.sanitize_attachment_filename(r"..\payload.exe"),
+            "payload.exe",
+        )
+
     @patch("phish_extractor.query_virustotal_url")
     @patch("phish_extractor.query_abuseipdb")
     def test_threat_intel_mock(self, mock_abuse, mock_vt):
