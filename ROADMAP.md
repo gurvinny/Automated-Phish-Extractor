@@ -40,11 +40,11 @@
 
 ### 🔒 Security
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#4](https://github.com/gurvinny/Automated-Phish-Extractor/issues/4) | API keys may leak into DEBUG logs | Keys passed via headers can appear in `requests` debug output written to stderr or syslog |
-| [#8](https://github.com/gurvinny/Automated-Phish-Extractor/issues/8) | No file-size limit | Crafted oversized `.eml` files can exhaust memory (DoS vector) |
-| [#9](https://github.com/gurvinny/Automated-Phish-Extractor/issues/9) | Attachment filename not sanitised | Raw `Content-Disposition` filename flows unsanitised — path traversal risk |
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#4](https://github.com/gurvinny/Automated-Phish-Extractor/issues/4) | API keys may leak into DEBUG logs | Keys passed via headers can appear in `requests` debug output written to stderr or syslog | ✅ Fixed (#26) |
+| [#8](https://github.com/gurvinny/Automated-Phish-Extractor/issues/8) | No file-size limit | Crafted oversized `.eml` files can exhaust memory (DoS vector) | ✅ Fixed (#25) |
+| [#9](https://github.com/gurvinny/Automated-Phish-Extractor/issues/9) | Attachment filename not sanitised | Raw `Content-Disposition` filename flows unsanitised — path traversal risk | ✅ Fixed (#24) |
 
 ---
 
