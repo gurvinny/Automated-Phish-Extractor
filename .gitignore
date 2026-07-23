@@ -21,4 +21,4 @@ env/
 !samples/*.msg
 
 # Build artifacts and reports
-reports/
+reports/deps/
