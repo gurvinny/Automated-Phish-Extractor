@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch, MagicMock
@@ -54,6 +55,16 @@ class TestPhishExtractor(unittest.TestCase):
             phish_extractor.sanitize_attachment_filename(r"..\payload.exe"),
             "payload.exe",
         )
+
+    def test_parse_eml_rejects_oversized_input(self):
+        with tempfile.NamedTemporaryFile(suffix=".eml") as eml_file:
+            eml_file.write(b"A" * 11)
+            eml_file.flush()
+            with patch.object(phish_extractor, "MAX_EML_SIZE_BYTES", 10), patch.object(
+                phish_extractor, "MAX_EML_SIZE_MB", 1
+            ):
+                with self.assertRaisesRegex(ValueError, "size limit"):
+                    phish_extractor.parse_eml(Path(eml_file.name))
 
     @patch("phish_extractor.query_virustotal_url")
     @patch("phish_extractor.query_abuseipdb")

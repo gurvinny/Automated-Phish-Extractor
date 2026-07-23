@@ -65,6 +65,20 @@ load_dotenv()
 VT_API_KEY: str | None = os.getenv("VT_API_KEY")
 ABUSEIPDB_API_KEY: str | None = os.getenv("ABUSEIPDB_API_KEY")
 
+
+def _positive_int_env(name: str, default: int) -> int:
+    """Read a positive integer environment variable with a safe fallback."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        print(
+            f"[WARN] Invalid {name}={os.getenv(name)!r}; using default {default}.",
+            file=sys.stderr,
+        )
+        return default
+    return value if value > 0 else default
+
+
 VT_BASE_URL: str = "https://www.virustotal.com/api/v3"
 ABUSEIPDB_BASE_URL: str = "https://api.abuseipdb.com/api/v2"
 
@@ -72,6 +86,8 @@ ABUSEIPDB_BASE_URL: str = "https://api.abuseipdb.com/api/v2"
 # hanging indefinitely on unresponsive APIs — important in automated
 # pipelines and CI/CD where a stuck process wastes resources.
 HTTP_TIMEOUT_SECONDS: int = 15
+MAX_EML_SIZE_MB: int = _positive_int_env("MAX_EML_SIZE_MB", 25)
+MAX_EML_SIZE_BYTES: int = MAX_EML_SIZE_MB * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -229,7 +245,19 @@ def parse_eml(file_path: Path) -> EmailMessage:
     # The modern API normalises headers and handles encoding edge-cases
     # more reliably — important because phishing emails deliberately use
     # malformed headers to evade naïve parsers.
-    raw_bytes: bytes = file_path.read_bytes()
+    # Read at most one byte beyond the configured limit. This avoids loading
+    # an attacker-controlled oversized message into memory before rejecting it.
+    try:
+        with file_path.open("rb") as eml_file:
+            raw_bytes = eml_file.read(MAX_EML_SIZE_BYTES + 1)
+    except OSError as exc:
+        raise ValueError(f"Unable to read EML file: {file_path}") from exc
+
+    if len(raw_bytes) > MAX_EML_SIZE_BYTES:
+        raise ValueError(
+            f"EML file exceeds the {MAX_EML_SIZE_MB} MB size limit: {file_path}"
+        )
+
     msg: EmailMessage = email.message_from_bytes(
         raw_bytes, policy=email.policy.default
     )  # type: ignore[assignment]
