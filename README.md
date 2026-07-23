@@ -66,11 +66,17 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-**4. Configure your API keys:**
+**4. Configure your API keys & environment settings:**
 Copy the example environment file and fill in your keys:
 ```powershell
 copy .env.example .env
 ```
+
+Available environment settings in `.env`:
+- `VT_API_KEY`: Your VirusTotal v3 API key.
+- `ABUSEIPDB_API_KEY`: Your AbuseIPDB API key.
+- `MAX_EML_SIZE_MB`: Maximum permitted `.eml` file size in MB (default: `25`).
+- `MIN_ATTACHMENT_BYTES`: Minimum attachment size threshold in bytes (default: `256`).
 
 > ⚠️ **Never commit your `.env` file.** It is listed in `.gitignore` to prevent accidental exposure.
 > If you accidentally push secrets, **rotate your API keys immediately** via the VirusTotal and AbuseIPDB dashboards — treat any exposed key as compromised.

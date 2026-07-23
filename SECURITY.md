@@ -49,8 +49,13 @@ This script parses untrusted `.eml` files and performs network I/O. **Never run 
 ### 🔑 Secret Management & Contribution
 We utilize a `.env` system for API keys. 
 * **Contributors:** Ensure `.env` is listed in your `.gitignore` before pushing code. 
-* **Reviewers:** Every Pull Request is screened for "secret leakage" using manual review and (ideally) automated hooks. 
+* **Log Redaction:** All logging handlers utilize an automated `SecretRedactionFilter` that strips configured API keys (`VT_API_KEY`, `ABUSEIPDB_API_KEY`) before log records are emitted.
+* **Reviewers:** Every Pull Request is screened for "secret leakage" using manual review and automated hooks. 
 * **Leaked Keys:** If a key is accidentally committed, **rotate it immediately.**
+
+### 🛡️ Input Sanitization & DoS Mitigation
+* **File Size Cap:** Input `.eml` files are restricted by `MAX_EML_SIZE_MB` (default: 25 MB) to prevent memory exhaustion DoS vectors from malicious oversized email samples.
+* **Path Traversal Protection:** Attachment filenames are sanitized (`sanitize_attachment_filename`) to strip directory separators (`/`, `\`), relative path components (`..`), and control characters prior to display or downstream processing.
 
 ### 📡 Operational Security (OPSEC)
 Querying external APIs (VirusTotal, AbuseIPDB) alerts third parties that an IOC is being investigated. 
