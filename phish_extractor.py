@@ -25,14 +25,16 @@ import ipaddress
 import json
 import logging
 import os
+import random
 import re
 import sys
+import time
 import textwrap
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 # ---------------------------------------------------------------------------
 # Third-party imports — only two non-stdlib packages are required:
@@ -118,6 +120,8 @@ _redaction_filter = SecretRedactionFilter([VT_API_KEY, ABUSEIPDB_API_KEY])
 for _handler in logging.getLogger().handlers:
     _handler.addFilter(_redaction_filter)
 log.addFilter(_redaction_filter)
+
+DEFAULT_RATE_LIMIT_DELAY_SECONDS: float = 15.0
 
 # ---------------------------------------------------------------------------
 # Regex patterns for IOC extraction
@@ -346,6 +350,19 @@ def _extract_auth_result(auth_header: str, mechanism: str) -> str:
     pattern = re.compile(rf"{mechanism}\s*=\s*(\w+)", re.IGNORECASE)
     match = pattern.search(auth_header)
     return match.group(1).lower() if match else "not found"
+
+
+def build_header_ioc_blob(msg: EmailMessage, headers: EmailHeaders) -> str:
+    """Build a text blob of header values that may contain IOCs."""
+    parts: list[str] = [
+        headers.from_addr,
+        headers.return_path,
+        *headers.received_chain,
+        str(msg.get("Reply-To", "")),
+        str(msg.get("X-Originating-IP", "")),
+        str(msg.get("X-Mailer", "")),
+    ]
+    return "\n".join(part for part in parts if part)
 
 
 # ===================================================================
@@ -846,6 +863,7 @@ def query_abuseipdb(ip: str) -> ThreatIntelResult:
 def enrich_iocs(
     iocs: IOCCollection,
     attachments: list[AttachmentInfo],
+    rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY_SECONDS,
 ) -> list[ThreatIntelResult]:
     """Query external APIs for every extracted IOC and attachment hash.
 
@@ -861,29 +879,106 @@ def enrich_iocs(
     # --- URLs → VirusTotal ---
     for url in iocs.urls:
         log.info("Checking URL with VirusTotal: %s", url)
-        results.append(query_virustotal_url(url))
+        results.append(
+            _with_rate_limit_backoff(
+                query_virustotal_url,
+                f"URL {url}",
+                url,
+                base_delay_seconds=rate_limit_delay,
+            )
+        )
 
     # --- Domains → VirusTotal ---
     for domain in iocs.domains:
         log.info("Checking domain with VirusTotal: %s", domain)
-        results.append(query_virustotal_domain(domain))
+        results.append(
+            _with_rate_limit_backoff(
+                query_virustotal_domain,
+                f"domain {domain}",
+                domain,
+                base_delay_seconds=rate_limit_delay,
+            )
+        )
 
     # --- IPv4 → AbuseIPDB + VirusTotal is IP-aware but AbuseIPDB is
     #     specialised, so we query it for IPs specifically. ---
     for ip in iocs.ipv4_addresses:
         log.info("Checking IPv4 with AbuseIPDB: %s", ip)
-        results.append(query_abuseipdb(ip))
+        results.append(
+            _with_rate_limit_backoff(
+                query_abuseipdb,
+                f"IPv4 {ip}",
+                ip,
+                base_delay_seconds=rate_limit_delay,
+            )
+        )
 
     for ip in iocs.ipv6_addresses:
         log.info("Checking IPv6 with AbuseIPDB: %s", ip)
-        results.append(query_abuseipdb(ip))
+        results.append(
+            _with_rate_limit_backoff(
+                query_abuseipdb,
+                f"IPv6 {ip}",
+                ip,
+                base_delay_seconds=rate_limit_delay,
+            )
+        )
 
     # --- Attachment hashes → VirusTotal ---
     for att in attachments:
         log.info("Checking attachment hash with VirusTotal: %s", att.filename)
-        results.append(query_virustotal_hash(att.sha256, att.filename))
+        results.append(
+            _with_rate_limit_backoff(
+                query_virustotal_hash,
+                f"attachment {att.filename}",
+                att.sha256,
+                att.filename,
+                base_delay_seconds=rate_limit_delay,
+            )
+        )
 
     return results
+
+
+def _is_rate_limited_result(result: ThreatIntelResult) -> bool:
+    """Return True when an API result indicates rate limiting."""
+    error = result.error.lower()
+    return "429" in error or "rate-limited" in error
+
+
+def _with_rate_limit_backoff(
+    lookup_fn: Callable[..., ThreatIntelResult],
+    ioc_label: str,
+    *args: Any,
+    base_delay_seconds: float = DEFAULT_RATE_LIMIT_DELAY_SECONDS,
+    sleep_fn: Callable[[float], None] | None = None,
+    jitter_fn: Callable[[float, float], float] | None = None,
+) -> ThreatIntelResult:
+    """Retry a lookup function when it returns a rate-limited result."""
+    sleep = sleep_fn or time.sleep
+    jitter = jitter_fn or random.uniform
+    result = lookup_fn(*args)
+
+    if base_delay_seconds <= 0:
+        return result
+
+    delays = [base_delay_seconds, base_delay_seconds * 2, base_delay_seconds * 4]
+    for attempt, delay in enumerate(delays, start=1):
+        if not _is_rate_limited_result(result):
+            return result
+
+        sleep_for = delay + jitter(0, delay * 0.1)
+        log.warning(
+            "%s rate-limited; retrying in %.1fs (attempt %d/%d)",
+            ioc_label,
+            sleep_for,
+            attempt,
+            len(delays),
+        )
+        sleep(sleep_for)
+        result = lookup_fn(*args)
+
+    return result
 
 
 # ===================================================================
@@ -1205,6 +1300,15 @@ def build_cli() -> argparse.ArgumentParser:
         help="Skip all external API lookups (offline mode).",
     )
     parser.add_argument(
+        "--rate-limit-delay",
+        type=float,
+        default=DEFAULT_RATE_LIMIT_DELAY_SECONDS,
+        help=(
+            "Base seconds to wait before retrying a rate-limited API call "
+            f"(default: {DEFAULT_RATE_LIMIT_DELAY_SECONDS:g})."
+        ),
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -1228,13 +1332,14 @@ def main() -> None:
     # --- 2. Extract ---
     headers: EmailHeaders = extract_headers(msg)
     body: str = get_body_text(msg)
-    iocs: IOCCollection = extract_iocs(body)
+    header_blob: str = build_header_ioc_blob(msg, headers)
+    iocs: IOCCollection = extract_iocs(body + "\n" + header_blob)
     attachments: list[AttachmentInfo] = extract_attachments(msg)
 
     # --- 3. Enrich ---
     intel: list[ThreatIntelResult] = []
     if not args.skip_intel:
-        intel = enrich_iocs(iocs, attachments)
+        intel = enrich_iocs(iocs, attachments, rate_limit_delay=args.rate_limit_delay)
     else:
         log.info("Threat-intel lookups skipped (--skip-intel).")
 
