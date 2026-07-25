@@ -1,3 +1,5 @@
+import email
+import email.policy
 import logging
 import os
 import sys
@@ -43,6 +45,29 @@ class TestPhishExtractor(unittest.TestCase):
         self.assertTrue(len(attach) > 0)
         self.assertEqual(attach[0].filename, "Invoice_78291.pdf")
 
+    def test_header_blob_iocs_are_scanned(self):
+        raw_eml = """From: "Alert Team" <alerts@evil-phish.example>
+Return-Path: <bounce@evil-phish.example>
+Reply-To: "Support" <support@reply-evil.example>
+X-Originating-IP: [8.8.8.8]
+X-Mailer: Mailer from mail.evil-phish.example
+Received: from mail.evil-phish.example (mail.evil-phish.example [1.1.1.1])
+Subject: Test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Hello
+"""
+        msg = email.message_from_string(raw_eml, policy=email.policy.default)
+        headers = phish_extractor.extract_headers(msg)
+        blob = phish_extractor.build_header_ioc_blob(msg, headers)
+        iocs = phish_extractor.extract_iocs(blob)
+
+        self.assertIn("evil-phish.example", iocs.domains)
+        self.assertIn("reply-evil.example", iocs.domains)
+        self.assertIn("8.8.8.8", iocs.ipv4_addresses)
+        self.assertIn("1.1.1.1", iocs.ipv4_addresses)
+
     def test_attachment_filename_is_sanitized(self):
         self.assertEqual(
             phish_extractor.sanitize_attachment_filename("../../dropper.exe"),
@@ -83,6 +108,33 @@ class TestPhishExtractor(unittest.TestCase):
         self.assertNotIn("abuse-secret", record.getMessage())
         self.assertEqual(record.getMessage(), "headers=[REDACTED] key=[REDACTED]")
 
+    @patch("phish_extractor.time.sleep")
+    @patch("phish_extractor.random.uniform", return_value=0.0)
+    @patch("phish_extractor.query_virustotal_url")
+    def test_rate_limit_backoff_retries_lookup(self, mock_vt, _mock_jitter, mock_sleep):
+        first = phish_extractor.ThreatIntelResult(
+            ioc="http://secure-update.com",
+            source="VirusTotal",
+            error="Rate-limited (HTTP 429) — retry later",
+        )
+        second = phish_extractor.ThreatIntelResult(
+            ioc="http://secure-update.com",
+            source="VirusTotal",
+            malicious=True,
+        )
+        mock_vt.side_effect = [first, second]
+
+        result = phish_extractor._with_rate_limit_backoff(
+            phish_extractor.query_virustotal_url,
+            "URL http://secure-update.com",
+            "http://secure-update.com",
+            base_delay_seconds=2.0,
+        )
+
+        self.assertEqual(mock_vt.call_count, 2)
+        mock_sleep.assert_called_once_with(2.0)
+        self.assertTrue(result.malicious)
+
     @patch("phish_extractor.query_virustotal_url")
     @patch("phish_extractor.query_abuseipdb")
     def test_threat_intel_mock(self, mock_abuse, mock_vt):
@@ -95,13 +147,13 @@ class TestPhishExtractor(unittest.TestCase):
         }
         mock_abuse.return_value = {
             "source": "AbuseIPDB",
-            "ioc": "198.51.100.42",
+            "ioc": "1.1.1.1",
             "malicious": True,
             "details": "Abuse confidence score: 85%",
             "error": None,
         }
         res_vt = phish_extractor.query_virustotal_url("http://secure-update.com")
-        res_ip = phish_extractor.query_abuseipdb("198.51.100.42")
+        res_ip = phish_extractor.query_abuseipdb("1.1.1.1")
         self.assertTrue(res_vt["malicious"])
         self.assertTrue(res_ip["malicious"])
 
