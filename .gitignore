@@ -16,7 +16,11 @@ env/
 *.eml
 *.msg
 
-# Except for explicit mock files in samples/
+# Except the synthetic corpus in samples/ — note the ** is required, a bare
+# samples/*.eml does not reach the malicious/ clean/ edge/ subdirectories and
+# silently drops them from commits.
+!samples/**/*.eml
+!samples/**/*.msg
 !samples/*.eml
 !samples/*.msg
 

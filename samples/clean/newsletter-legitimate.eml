@@ -1,0 +1,41 @@
+Delivered-To: user@example.com
+Return-Path: <newsletter-bounces@news.example.org>
+Authentication-Results: mx.example.com;
+    spf=pass (domain of news.example.org designates 198.51.100.10 as permitted sender) smtp.mailfrom=newsletter-bounces@news.example.org;
+    dkim=pass header.d=news.example.org;
+    dmarc=pass (p=reject sp=reject) header.from=news.example.org
+Received: from mail.news.example.org (mail.news.example.org [198.51.100.10])
+    by mx.example.com with ESMTPS id 5a2b7c31
+    for <user@example.com>; Thu, 12 Mar 2026 09:00:04 -0400
+From: "Example Org Weekly" <weekly@news.example.org>
+To: user@example.com
+Subject: Your weekly digest is ready
+Date: Thu, 12 Mar 2026 09:00:04 -0400
+Message-ID: <5a2b7c31.weekly@news.example.org>
+List-Unsubscribe: <https://news.example.org/unsubscribe?id=8821>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Alt_2231_7781"
+
+------=_Alt_2231_7781
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+This week's highlights are online.
+
+Read the digest: https://news.example.org/digest/2026-03-12
+Manage preferences: https://news.example.org/preferences
+
+You are receiving this because you subscribed at news.example.org.
+
+------=_Alt_2231_7781
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<html>
+<body>
+<h1>This week's highlights</h1>
+<p><a href="https://news.example.org/digest/2026-03-12">Read the digest</a></p>
+<p><a href="https://news.example.org/preferences">Manage preferences</a></p>
+</body>
+</html>
+------=_Alt_2231_7781--
