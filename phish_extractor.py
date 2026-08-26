@@ -123,6 +123,16 @@ log.addFilter(_redaction_filter)
 
 DEFAULT_RATE_LIMIT_DELAY_SECONDS: float = 15.0
 
+# Ceiling on how much unresolved-lookup uncertainty can add to the risk score.
+# Keeps provider outages from dominating a verdict that should be driven by
+# authentication results and confirmed-malicious hits.
+MAX_UNCERTAINTY_SCORE: int = 2
+
+# Once this many lookups in a row come back rate-limited, the quota is spent
+# and further retries only add wall-clock time; the remaining IOCs are
+# returned unresolved instead.
+MAX_CONSECUTIVE_RATE_LIMITS: int = 3
+
 # ---------------------------------------------------------------------------
 # Regex patterns for IOC extraction
 # ---------------------------------------------------------------------------
@@ -163,10 +173,14 @@ IPV4_PATTERN: re.Pattern[str] = re.compile(
 # THOUGHT PROCESS: Full IPv6 addresses rarely appear in phishing bodies, but
 # they *do* appear in Received headers and authentication results.  Covering
 # them ensures completeness for header-based IOC extraction.
+# NOTE: the compressed forms must be tried before the "prefix ending in ::"
+# form, otherwise the latter matches only the head of an address such as
+# 2001:db8::34 and silently reports a *different* address.
 IPV6_PATTERN: re.Pattern[str] = re.compile(
     r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b"
-    r"|\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b"
-    r"|\b::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}\b"
+    r"|\b(?:[0-9a-fA-F]{1,4}:){1,7}:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){0,5}\b"
+    r"|\b(?:[0-9a-fA-F]{1,4}:){1,7}:(?![0-9a-fA-F:])"
+    r"|(?<![0-9a-fA-F:])::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\b"
 )
 
 # ---------------------------------------------------------------------------
@@ -229,6 +243,7 @@ class ThreatIntelResult:
     abuse_confidence: int = 0
     details: dict[str, Any] = field(default_factory=dict)
     error: str = ""
+    rate_limited: bool = False
 
 
 @dataclass
@@ -353,16 +368,55 @@ def _extract_auth_result(auth_header: str, mechanism: str) -> str:
 
 
 def build_header_ioc_blob(msg: EmailMessage, headers: EmailHeaders) -> str:
-    """Build a text blob of header values that may contain IOCs."""
+    """Build a text blob of sender-controlled header values that may hold IOCs.
+
+    Only headers the *sender* influences are scanned.  The Received chain
+    describes the receiving infrastructure, so including it in full extracts
+    our own mail relays and recipient domain, submits them to third-party
+    reputation APIs, and sends the analyst chasing their own hosts.  The
+    outermost hop is the exception: it is the closest thing to the sender's
+    own relay that the chain records.
+    """
     parts: list[str] = [
         headers.from_addr,
         headers.return_path,
-        *headers.received_chain,
         str(msg.get("Reply-To", "")),
         str(msg.get("X-Originating-IP", "")),
         str(msg.get("X-Mailer", "")),
     ]
+    if headers.received_chain:
+        # Received headers are prepended by each hop, so the *last* entry is
+        # the earliest hop — the one nearest the sender.  Even that hop names
+        # both sides ("from <sender> by <us> for <recipient>"), so only the
+        # "from" clause is kept.
+        sender_hop = _sender_clause(headers.received_chain[-1])
+        if sender_hop:
+            parts.append(sender_hop)
     return "\n".join(part for part in parts if part)
+
+
+def _sender_clause(received: str) -> str:
+    """Return only the sending half of a Received header.
+
+    A Received header records both ends of a hop::
+
+        from mail.evil.example ([198.51.100.42])
+            by mx.ourcompany.example with ESMTP id 12345
+            for <victim@ourcompany.example>; Wed, 11 Mar 2026 10:00:00 -0400
+
+    Everything from ``by`` onward describes our own infrastructure and the
+    recipient.  Extracting it would ship internal hostnames to third-party
+    reputation APIs and list them to the analyst as indicators, so this
+    truncates at the first ``by`` token.
+
+    Args:
+        received: A single raw Received header value.
+
+    Returns:
+        The ``from`` clause, or an empty string if there is no sender half.
+    """
+    head = re.split(r"\bby\b", received, maxsplit=1, flags=re.IGNORECASE)[0]
+    return head.strip() if head.strip().lower().startswith("from") else ""
 
 
 # ===================================================================
@@ -430,6 +484,7 @@ def extract_iocs(text: str) -> IOCCollection:
     # because they are *internal* and cannot be threat-intel-checked.
     # Sending 192.168.x.x to VirusTotal adds noise and wastes API calls.
     ipv4s = {ip for ip in ipv4s if _is_routable_ipv4(ip)}
+    ipv6s = {ip for ip in ipv6s if _is_routable_ipv6(ip)}
 
     # Drop bare file-extension tokens (e.g. "login.php", "index.html") that
     # DOMAIN_PATTERN can match as domain IOCs when they appear in body text
@@ -474,6 +529,25 @@ def _is_routable_ipv4(ip_str: str) -> bool:
         addr = ipaddress.IPv4Address(ip_str)
         return addr.is_global
     except ipaddress.AddressValueError:
+        return False
+
+
+def _is_routable_ipv6(ip_str: str) -> bool:
+    """Return True if the IPv6 address is globally routable.
+
+    The IPv4 filter above exists so internal addresses are not shipped to
+    reputation APIs.  Received chains carry link-local (``fe80::/10``) and
+    unique-local hops routinely, so IPv6 needs the same treatment.
+
+    Args:
+        ip_str: IPv6 address string, compressed or full.
+
+    Returns:
+        ``True`` if the address is public / routable.
+    """
+    try:
+        return ipaddress.IPv6Address(ip_str).is_global
+    except ValueError:
         return False
 
 
@@ -738,6 +812,7 @@ def _virustotal_get(
 
         if resp.status_code == 429:
             result.error = "Rate-limited (HTTP 429) — retry later"
+            result.rate_limited = True
             log.warning("VT rate-limited on %s", ioc_label)
             return result
 
@@ -825,6 +900,7 @@ def query_abuseipdb(ip: str) -> ThreatIntelResult:
 
         if resp.status_code == 429:
             result.error = "Rate-limited (HTTP 429) — retry later"
+            result.rate_limited = True
             log.warning("AbuseIPDB rate-limited on %s", ip)
             return result
 
@@ -875,6 +951,9 @@ def enrich_iocs(
         A list of ``ThreatIntelResult`` objects (one per API call).
     """
     results: list[ThreatIntelResult] = []
+    # One budget shared by every lookup in this run, so the retry ladder is
+    # paid once rather than once per IOC when the provider quota is spent.
+    budget = RateLimitBudget()
 
     # --- URLs → VirusTotal ---
     for url in iocs.urls:
@@ -885,6 +964,7 @@ def enrich_iocs(
                 f"URL {url}",
                 url,
                 base_delay_seconds=rate_limit_delay,
+                budget=budget,
             )
         )
 
@@ -897,6 +977,7 @@ def enrich_iocs(
                 f"domain {domain}",
                 domain,
                 base_delay_seconds=rate_limit_delay,
+                budget=budget,
             )
         )
 
@@ -910,6 +991,7 @@ def enrich_iocs(
                 f"IPv4 {ip}",
                 ip,
                 base_delay_seconds=rate_limit_delay,
+                budget=budget,
             )
         )
 
@@ -921,6 +1003,7 @@ def enrich_iocs(
                 f"IPv6 {ip}",
                 ip,
                 base_delay_seconds=rate_limit_delay,
+                budget=budget,
             )
         )
 
@@ -934,6 +1017,7 @@ def enrich_iocs(
                 att.sha256,
                 att.filename,
                 base_delay_seconds=rate_limit_delay,
+                budget=budget,
             )
         )
 
@@ -941,9 +1025,37 @@ def enrich_iocs(
 
 
 def _is_rate_limited_result(result: ThreatIntelResult) -> bool:
-    """Return True when an API result indicates rate limiting."""
-    error = result.error.lower()
-    return "429" in error or "rate-limited" in error
+    """Return True when an API result indicates rate limiting.
+
+    This reads the flag the query functions set from the HTTP status code.
+    It deliberately does not pattern-match the error text: request failures
+    embed the endpoint URL, so a 503 on ``shop429.com`` — or any of the ~1.5%
+    of SHA-256 hashes containing "429" — would otherwise be retried as though
+    it were a quota error.
+    """
+    return result.rate_limited
+
+
+class RateLimitBudget:
+    """Tracks consecutive rate-limit responses across a run of lookups.
+
+    Backoff is per-IOC, so without shared state every IOC pays the full
+    retry ladder once the provider quota is exhausted.  With a dozen IOCs
+    that is many minutes of sleeping to arrive at the same unresolved
+    answer.  This lets the first few IOCs establish that the quota is gone,
+    after which the rest return immediately.
+    """
+
+    def __init__(self, max_consecutive: int = MAX_CONSECUTIVE_RATE_LIMITS) -> None:
+        self.max_consecutive = max_consecutive
+        self.consecutive = 0
+
+    @property
+    def exhausted(self) -> bool:
+        return self.consecutive >= self.max_consecutive
+
+    def record(self, rate_limited: bool) -> None:
+        self.consecutive = self.consecutive + 1 if rate_limited else 0
 
 
 def _with_rate_limit_backoff(
@@ -953,18 +1065,28 @@ def _with_rate_limit_backoff(
     base_delay_seconds: float = DEFAULT_RATE_LIMIT_DELAY_SECONDS,
     sleep_fn: Callable[[float], None] | None = None,
     jitter_fn: Callable[[float, float], float] | None = None,
+    budget: RateLimitBudget | None = None,
 ) -> ThreatIntelResult:
     """Retry a lookup function when it returns a rate-limited result."""
     sleep = sleep_fn or time.sleep
     jitter = jitter_fn or random.uniform
     result = lookup_fn(*args)
 
+    if budget is not None and budget.exhausted:
+        # Quota already proven spent by earlier IOCs — do not sleep again.
+        budget.record(_is_rate_limited_result(result))
+        return result
+
     if base_delay_seconds <= 0:
+        if budget is not None:
+            budget.record(_is_rate_limited_result(result))
         return result
 
     delays = [base_delay_seconds, base_delay_seconds * 2, base_delay_seconds * 4]
     for attempt, delay in enumerate(delays, start=1):
         if not _is_rate_limited_result(result):
+            if budget is not None:
+                budget.record(False)
             return result
 
         sleep_for = delay + jitter(0, delay * 0.1)
@@ -978,6 +1100,8 @@ def _with_rate_limit_backoff(
         sleep(sleep_for)
         result = lookup_fn(*args)
 
+    if budget is not None:
+        budget.record(_is_rate_limited_result(result))
     return result
 
 
@@ -1027,8 +1151,17 @@ def calculate_risk(
     for res in intel:
         if res.malicious:
             score += 3
-        if res.error:
-            score += 1  # uncertainty is a risk factor
+
+    # THOUGHT PROCESS: unresolved lookups are a mild uncertainty signal, but
+    # the penalty must not scale with the number of IOCs.  A missing API key,
+    # an exhausted quota or a network outage fails *every* lookup at once, and
+    # an unbounded +1 each would push any message — however benign — to
+    # CRITICAL purely because the tool could not reach its providers.  The
+    # contribution is therefore capped, and a total failure is treated as one
+    # signal rather than N.
+    errored = sum(1 for res in intel if res.error)
+    if errored:
+        score += 1 if errored == len(intel) else min(errored, MAX_UNCERTAINTY_SCORE)
 
     if score <= 2:
         return "LOW"

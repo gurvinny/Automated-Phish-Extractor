@@ -108,14 +108,16 @@ Hello
         self.assertNotIn("abuse-secret", record.getMessage())
         self.assertEqual(record.getMessage(), "headers=[REDACTED] key=[REDACTED]")
 
-    @patch("phish_extractor.time.sleep")
-    @patch("phish_extractor.random.uniform", return_value=0.0)
     @patch("phish_extractor.query_virustotal_url")
-    def test_rate_limit_backoff_retries_lookup(self, mock_vt, _mock_jitter, mock_sleep):
+    def test_rate_limit_backoff_retries_lookup(self, mock_vt):
+        # Use the injection points the function provides rather than patching
+        # time.sleep globally, which would stall any concurrently running code.
+        slept: list[float] = []
         first = phish_extractor.ThreatIntelResult(
             ioc="http://secure-update.com",
             source="VirusTotal",
             error="Rate-limited (HTTP 429) — retry later",
+            rate_limited=True,
         )
         second = phish_extractor.ThreatIntelResult(
             ioc="http://secure-update.com",
@@ -129,11 +131,94 @@ Hello
             "URL http://secure-update.com",
             "http://secure-update.com",
             base_delay_seconds=2.0,
+            sleep_fn=slept.append,
+            jitter_fn=lambda _lo, _hi: 0.0,
         )
 
         self.assertEqual(mock_vt.call_count, 2)
-        mock_sleep.assert_called_once_with(2.0)
+        self.assertEqual(slept, [2.0])
         self.assertTrue(result.malicious)
+
+    @patch("phish_extractor.query_virustotal_url")
+    def test_rate_limit_budget_stops_retrying_once_quota_is_spent(self, mock_vt):
+        """After MAX_CONSECUTIVE_RATE_LIMITS, later IOCs must not sleep."""
+        slept: list[float] = []
+        mock_vt.side_effect = lambda *_a: phish_extractor.ThreatIntelResult(
+            ioc="http://x.test",
+            source="VirusTotal",
+            error="Rate-limited (HTTP 429) — retry later",
+            rate_limited=True,
+        )
+        budget = phish_extractor.RateLimitBudget(max_consecutive=1)
+
+        for _ in range(3):
+            phish_extractor._with_rate_limit_backoff(
+                phish_extractor.query_virustotal_url,
+                "URL http://x.test",
+                "http://x.test",
+                base_delay_seconds=2.0,
+                sleep_fn=slept.append,
+                jitter_fn=lambda _lo, _hi: 0.0,
+                budget=budget,
+            )
+
+        # Only the first IOC pays the retry ladder; the rest return at once.
+        self.assertEqual(len(slept), 3)
+        self.assertTrue(budget.exhausted)
+
+    def test_error_penalty_cannot_force_critical(self):
+        """A total provider outage must not drive a benign message to CRITICAL."""
+        headers = phish_extractor.EmailHeaders(
+            spf_result="pass", dkim_result="pass", dmarc_result="pass"
+        )
+        intel = [
+            phish_extractor.ThreatIntelResult(
+                ioc=f"host{i}.test", source="VirusTotal", error="VT_API_KEY not set"
+            )
+            for i in range(10)
+        ]
+        verdict = phish_extractor.calculate_risk(headers, intel)
+        self.assertNotEqual(verdict, "CRITICAL")
+
+    def test_ipv6_extraction_preserves_compressed_addresses(self):
+        text = "hop via 2001:4860:4864:20::34 and fe80::1ff:fe23:4567:890a here"
+        found = set(phish_extractor.IPV6_PATTERN.findall(text))
+        self.assertIn("2001:4860:4864:20::34", found)
+        self.assertNotIn("2001:4860:4864:20::", found)
+
+    def test_non_global_ipv6_is_filtered(self):
+        self.assertFalse(phish_extractor._is_routable_ipv6("fe80::1"))
+        self.assertFalse(phish_extractor._is_routable_ipv6("fd00::1"))
+        self.assertTrue(phish_extractor._is_routable_ipv6("2001:4860:4864:20::34"))
+
+    def test_received_header_does_not_leak_recipient_infrastructure(self):
+        """Only the sending half of a Received hop may become an IOC."""
+        received = (
+            "from mail.evil.example (mail.evil.example [203.0.113.9])\n"
+            "    by mx.ourcompany.example with ESMTP id 12345abcd\n"
+            "    for <victim@ourcompany.example>; Wed, 11 Mar 2026 10:00:00 -0400"
+        )
+        clause = phish_extractor._sender_clause(received)
+        self.assertIn("mail.evil.example", clause)
+        self.assertNotIn("ourcompany.example", clause)
+        self.assertNotIn("victim@", clause)
+
+    def test_sender_clause_ignores_hop_without_from(self):
+        self.assertEqual(
+            phish_extractor._sender_clause("by mx.ourcompany.example with ESMTP"), ""
+        )
+
+    def test_rate_limit_detection_ignores_429_inside_urls(self):
+        """A 503 on a host containing '429' must not be treated as a quota error."""
+        result = phish_extractor.ThreatIntelResult(
+            ioc="shop429.com",
+            source="VirusTotal",
+            error=(
+                "Request failed: 503 Server Error: Service Unavailable "
+                "for url: https://www.virustotal.com/api/v3/domains/shop429.com"
+            ),
+        )
+        self.assertFalse(phish_extractor._is_rate_limited_result(result))
 
     @patch("phish_extractor.query_virustotal_url")
     @patch("phish_extractor.query_abuseipdb")
