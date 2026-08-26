@@ -8,7 +8,7 @@ threat report in Markdown or JSON.
 
 Author : @gurvinny
 License: MIT
-Python : 3.10 - 3.12
+Python : 3.10 - 3.13
 """
 
 # THOUGHT PROCESS: We use __future__ annotations so that all type hints are

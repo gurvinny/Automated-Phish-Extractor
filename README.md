@@ -5,8 +5,8 @@
 **Automated IOC Extraction & Threat Intelligence Reporter**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
-[![Tests](https://img.shields.io/badge/tests-30_passing-2ea043?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
-[![Python](https://img.shields.io/badge/python-3.10_--_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Tests](https://img.shields.io/badge/tests-pytest-2ea043?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Python](https://img.shields.io/badge/python-3.10_--_3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE.md)
 [![Version](https://img.shields.io/badge/version-1.0--beta-blue?style=for-the-badge&logo=github&logoColor=white)](ROADMAP.md)
 [![Roadmap](https://img.shields.io/badge/roadmap-v2.0_planned-orange?style=for-the-badge)](ROADMAP.md)
@@ -44,7 +44,7 @@ By fully automating the manual labor of parsing headers, calculating file hashes
 
 ## 🛠️ Prerequisites & Installation
 
-* **Python**: `3.10+`
+* **Python**: `3.10` – `3.13` (all four are covered by CI)
 * **OS**: Cross-platform (Windows, macOS, Linux)
 
 For Windows/VS Code users, follow these commands to set up the environment:

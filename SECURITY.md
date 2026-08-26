@@ -6,7 +6,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
 [![Security Policy](https://img.shields.io/badge/security-policy_active-2ea043?style=for-the-badge&logo=github&logoColor=white)](SECURITY.md)
-[![Python](https://img.shields.io/badge/python-3.10_--_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.10_--_3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Reporting](https://img.shields.io/badge/reporting-private_advisory-red?style=for-the-badge)](https://github.com/gurvinny/Automated-Phish-Extractor/security/advisories/new)
 
 <p align="center">
@@ -23,7 +23,7 @@ The following versions of **Phish Extractor** receive security updates. As this 
 
 | Version | Supported          | Python Version | Status                     |
 | ------- | ------------------ | -------------- | -------------------------- |
-| `1.0.x` | :white_check_mark: | `3.10` – `3.12` | Active Maintenance         |
+| `1.0.x` | :white_check_mark: | `3.10` – `3.13` | Active Maintenance         |
 | `< 1.0` | :x:                | N/A            | Unsupported Legacy         |
 
 ---
