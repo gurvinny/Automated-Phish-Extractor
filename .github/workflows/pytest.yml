@@ -6,31 +6,100 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Least privilege: this workflow only ever reads the repository.
+permissions:
+  contents: read
+
+# A newer push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest pytest-mock responses
+          pip install -r requirements.txt pytest
 
       - name: Syntax check
-        run: |
-          python -m py_compile phish_extractor.py
+        run: python -m py_compile phish_extractor.py
 
       - name: Run unit tests
+        # Live API tests are gated on RUN_LIVE_API_TESTS, which is deliberately
+        # never set here: CI stays offline and holds no credentials.
+        run: pytest tests/ -v
+
+  detections:
+    name: Validate detection rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install validators
+        run: pip install pyyaml
+
+      - name: Validate Sigma rules parse and carry required fields
         run: |
-          python -m unittest discover -s tests -v
-          pytest tests/
+          python - <<'PY'
+          import glob, sys, yaml
+
+          REQUIRED = {"title", "id", "status", "description", "logsource", "detection", "level"}
+          failed = False
+
+          for path in sorted(glob.glob("detections/*.yml")):
+              try:
+                  rule = yaml.safe_load(open(path))
+              except yaml.YAMLError as exc:
+                  print(f"::error file={path}::invalid YAML: {exc}")
+                  failed = True
+                  continue
+              missing = REQUIRED - set(rule)
+              if missing:
+                  print(f"::error file={path}::missing required fields: {sorted(missing)}")
+                  failed = True
+              else:
+                  print(f"ok: {path} ({rule['level']})")
+
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Validate YARA rules compile
+        run: |
+          pip install yara-python
+          python - <<'PY'
+          import glob, sys, yara
+
+          failed = False
+          for path in sorted(glob.glob("detections/*.yar")):
+              try:
+                  yara.compile(filepath=path)
+                  print(f"ok: {path}")
+              except yara.Error as exc:
+                  print(f"::error file={path}::does not compile: {exc}")
+                  failed = True
+
+          sys.exit(1 if failed else 0)
+          PY
