@@ -296,6 +296,48 @@ Hello
         )
         self.assertEqual(phish_extractor.detect_identity_mismatches(headers), [])
 
+    # ---- report safety ---------------------------------------------------
+
+    def test_safe_md_neutralises_markdown_links(self):
+        """An attacker-set Subject must not render as a clickable link."""
+        subject = "Please [review your invoice](https://evil.example/mal)"
+        rendered = phish_extractor.safe_md(subject)
+        self.assertNotIn("](http", rendered)
+        self.assertIn("\\[", rendered)
+
+    def test_safe_md_neutralises_autolinks_and_code_spans(self):
+        rendered = phish_extractor.safe_md("<https://evil.example> and `code`")
+        self.assertNotIn("<https://evil.example>", rendered)
+        self.assertNotIn("`code`", rendered)
+
+    def test_safe_code_md_cannot_break_out_of_a_code_span(self):
+        value = phish_extractor.safe_code_md("evil`|injected|`")
+        self.assertNotIn("`", value)
+        self.assertNotIn("|", value)
+
+    def test_report_does_not_contain_live_links_from_headers(self):
+        """End to end: a hostile subject must not survive into the report."""
+        path = SAMPLES / "edge" / "markdown-injection.eml"
+        msg = phish_extractor.parse_eml(path)
+        headers = phish_extractor.extract_headers(msg)
+        iocs = phish_extractor.extract_iocs(phish_extractor.get_body_text(msg))
+        report = phish_extractor.build_report(
+            source_file=path.name,
+            headers=headers,
+            iocs=iocs,
+            attachments=[],
+            intel=[],
+            risk="LOW",
+        )
+        markdown = phish_extractor.report_to_markdown(report)
+        self.assertNotIn("](http", markdown)
+
+    def test_bidi_override_stripped_from_filenames(self):
+        """RTL override hides a real extension from the analyst."""
+        cleaned = phish_extractor.sanitize_attachment_filename("invoice\u202ecod.scr")
+        self.assertNotIn("\u202e", cleaned)
+        self.assertTrue(cleaned.endswith(".scr"))
+
     def test_rate_limit_detection_ignores_429_inside_urls(self):
         """A 503 on a host containing '429' must not be treated as a quota error."""
         result = phish_extractor.ThreatIntelResult(

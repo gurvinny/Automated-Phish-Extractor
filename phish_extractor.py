@@ -713,9 +713,43 @@ def safe_md(text: str | None) -> str:
     if text is None:
         return "None"
 
-    # Replace pipes with the HTML entity equivalent so tables don't break.
-    # Replace newlines with spaces so rows don't wrap unexpectedly.
-    return str(text).replace("|", "&#124;").replace("\n", " ").replace("\r", "")
+    value = str(text).replace("\r", "").replace("\n", " ")
+    # Pipes would open new table cells.
+    value = value.replace("|", "&#124;")
+    # THOUGHT PROCESS: escaping pipes alone is not enough.  Header text is
+    # attacker-controlled, and Markdown link syntax survives it: a subject of
+    # "Please [review](https://evil.example/x)" renders as a live, undefanged,
+    # clickable link inside the report — the exact click risk defanging exists
+    # to remove, on a URL that is never extracted as an IOC either.  Angle
+    # brackets do the same via autolinks, and backticks break out of the code
+    # spans used elsewhere in the report.
+    for char in ("\\", "`", "[", "]", "(", ")", "<", ">"):
+        value = value.replace(char, "\\" + char)
+    return value
+
+
+def safe_code_md(text: str | None) -> str:
+    """Sanitize a value that will be placed inside a Markdown code span.
+
+    Backslash escapes do not apply inside code spans, so the characters that
+    would end the span — or open a new table cell — are replaced outright
+    rather than escaped.
+
+    Args:
+        text: The raw, possibly attacker-controlled string.
+
+    Returns:
+        A string safe to wrap in backticks inside a table cell.
+    """
+    if text is None:
+        return "None"
+    return (
+        str(text)
+        .replace("\r", "")
+        .replace("\n", " ")
+        .replace("`", "'")
+        .replace("|", "&#124;")
+    )
 
 
 # ===================================================================
@@ -786,7 +820,16 @@ def sanitize_attachment_filename(filename: str | None) -> str:
     if not filename:
         return "unnamed_attachment"
 
-    cleaned = re.sub(r"[\x00-\x1f\x7f]", "_", str(filename)).strip()
+    # THOUGHT PROCESS: C0 controls are not the only characters that lie about
+    # a filename.  Unicode bidirectional overrides are a standard malware
+    # trick — "invoice\u202ecod.scr" renders to an analyst as though it ends
+    # in .doc while remaining an executable.  A tool whose job is presenting
+    # attachment metadata truthfully must not pass those through.
+    cleaned = re.sub(
+        r"[\x00-\x1f\x7f\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]",
+        "_",
+        str(filename),
+    ).strip()
     cleaned = re.split(r"[\\/]", cleaned)[-1]
     if not cleaned or cleaned in {".", ".."}:
         return "unnamed_attachment"
@@ -1441,28 +1484,28 @@ def report_to_markdown(report: ThreatReport) -> str:
         lines.append("### URLs")
         lines.append("")
         for url in r.iocs.urls:
-            lines.append(f"- `{defang_url(url)}`")
+            lines.append(f"- `{safe_code_md(defang_url(url))}`")
         lines.append("")
 
     if r.iocs.domains:
         lines.append("### Domains")
         lines.append("")
         for d in r.iocs.domains:
-            lines.append(f"- `{defang_domain(d)}`")
+            lines.append(f"- `{safe_code_md(defang_domain(d))}`")
         lines.append("")
 
     if r.iocs.ipv4_addresses:
         lines.append("### IPv4 Addresses")
         lines.append("")
         for ip in r.iocs.ipv4_addresses:
-            lines.append(f"- `{defang_ip(ip)}`")
+            lines.append(f"- `{safe_code_md(defang_ip(ip))}`")
         lines.append("")
 
     if r.iocs.ipv6_addresses:
         lines.append("### IPv6 Addresses")
         lines.append("")
         for ip in r.iocs.ipv6_addresses:
-            lines.append(f"- `{defang_ip(ip)}`")
+            lines.append(f"- `{safe_code_md(defang_ip(ip))}`")
         lines.append("")
 
     if not any(
@@ -1516,10 +1559,12 @@ def report_to_markdown(report: ThreatReport) -> str:
                     else "—"
                 )
             )
-            ioc_display: str = defang_url(ti.ioc) if "://" in ti.ioc else defang_domain(ti.ioc)
+            ioc_display: str = safe_code_md(
+                defang_url(ti.ioc) if "://" in ti.ioc else defang_domain(ti.ioc)
+            )
             lines.append(
-                f"| `{ioc_display}` | {ti.source} | {mal_str} | "
-                f"{det_str} | {ti.error or '—'} |"
+                f"| `{ioc_display}` | {safe_md(ti.source)} | {mal_str} | "
+                f"{safe_md(det_str)} | {safe_md(ti.error) if ti.error else '—'} |"
             )
         lines.append("")
     else:
@@ -1600,7 +1645,35 @@ def build_cli() -> argparse.ArgumentParser:
     return parser
 
 
+# Exit codes, so the tool composes in pipelines and CI.
+EXIT_OK: int = 0
+EXIT_INPUT_ERROR: int = 2
+EXIT_UNEXPECTED: int = 3
+
+
 def main() -> None:
+    """Parse CLI args and run the pipeline, converting failures to exit codes.
+
+    Every input to this tool is attacker-controlled, so a malformed or hostile
+    message must produce a readable error and a defined exit code rather than
+    a traceback — the difference matters when it runs unattended in a mail
+    pipeline.
+    """
+    try:
+        _run()
+    except (FileNotFoundError, IsADirectoryError, PermissionError, ValueError) as exc:
+        log.error("%s", exc)
+        raise SystemExit(EXIT_INPUT_ERROR) from exc
+    except KeyboardInterrupt:  # pragma: no cover - interactive only
+        log.error("Interrupted.")
+        raise SystemExit(EXIT_UNEXPECTED) from None
+    except Exception as exc:  # noqa: BLE001 - last line of defence
+        log.exception("Unexpected failure while analysing the message: %s", exc)
+        raise SystemExit(EXIT_UNEXPECTED) from exc
+    raise SystemExit(EXIT_OK)
+
+
+def _run() -> None:
     """Top-level orchestration: parse CLI args, run the pipeline, emit output."""
     parser: argparse.ArgumentParser = build_cli()
     args: argparse.Namespace = parser.parse_args()
