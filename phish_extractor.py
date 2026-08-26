@@ -6,9 +6,9 @@ Ingests raw .eml files, extracts Indicators of Compromise (IOCs), queries
 VirusTotal v3 and AbuseIPDB for reputation data, and produces a structured
 threat report in Markdown or JSON.
 
-Author : Gurvin Singh
+Author : @gurvinny
 License: MIT
-Python : 3.10+
+Python : 3.10 - 3.12
 """
 
 # THOUGHT PROCESS: We use __future__ annotations so that all type hints are

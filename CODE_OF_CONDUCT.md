@@ -2,9 +2,9 @@
 
 # Contributor Covenant Code of Conduct
 
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/gurvinny/Automated-Phish-Extractor/graphs/commit-activity)
-[![Community Friendly](https://img.shields.io/badge/Community-Friendly-blue.svg)](#)
+[![Contributor Covenant](https://img.shields.io/badge/contributor_covenant-2.1-4baaaa?style=for-the-badge)](https://www.contributor-covenant.org/version/2/1/code_of_conduct/)
+[![Maintained](https://img.shields.io/badge/maintained-yes-2ea043?style=for-the-badge)](https://github.com/gurvinny/Automated-Phish-Extractor/graphs/commit-activity)
+[![Community](https://img.shields.io/badge/community-friendly-blue?style=for-the-badge)](#)
 
 <p align="center">
   Establishing a respectful and professional environment for all contributors.
@@ -41,7 +41,7 @@ Community leaders (Project Maintainers) are responsible for clarifying and enfor
 This Code of Conduct applies within all project spaces, and also applies when an individual is officially representing the project in public spaces.
 
 ## Enforcement
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project maintainer, **Gurvin Singh**, at https://github.com/gurvinny. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project maintainer, **@gurvinny**, at https://github.com/gurvinny. All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution
 This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 2.0, available at https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.

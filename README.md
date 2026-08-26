@@ -4,13 +4,12 @@
 
 **Automated IOC Extraction & Threat Intelligence Reporter**
 
-[![Version](https://img.shields.io/badge/version-1.0--beta-blue.svg?logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![SOC Portfolio](https://img.shields.io/badge/Portfolio-SOC_Analyst-purple.svg)]()
-[![Roadmap](https://img.shields.io/badge/Roadmap-v2.0_planned-orange.svg)](https://github.com/gurvinny/Automated-Phish-Extractor/blob/main/ROADMAP.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Tests](https://img.shields.io/badge/tests-30_passing-2ea043?style=for-the-badge&logo=pytest&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Python](https://img.shields.io/badge/python-3.10_--_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE.md)
+[![Version](https://img.shields.io/badge/version-1.0--beta-blue?style=for-the-badge&logo=github&logoColor=white)](ROADMAP.md)
+[![Roadmap](https://img.shields.io/badge/roadmap-v2.0_planned-orange?style=for-the-badge)](ROADMAP.md)
 
 <p align="center">
   <em>Reducing SOC alert fatigue by automating the ingestion, parsing, and enrichment of malicious .eml files.</em>
@@ -34,11 +33,12 @@ By fully automating the manual labor of parsing headers, calculating file hashes
 
 ## ✨ Features
 
-- 🔍 **Header Parsing:** Automatically extracts sender, recipient, subject, dates, and most importantly, `SPF`, `DKIM`, and `DMARC` authentication results.
-- 🧬 **Robust IOC Extraction:** Efficiently pulls URLs, domains, IPv4/IPv6 addresses, and calculates `SHA-256` hashes for all file attachments using regex patterns and MIME tree traversal.
-- 🛡️ **Defanging:** Defangs URLs, IPs, and domains automatically (e.g., `hxxps://evil[.]com`) to ensure indicators can be safely shared across teams and SOAR platforms without accidental execution or triggering enterprise perimeter alerts.
-- 🧠 **Automated Threat Intel Enrichment:** Interacts with the **VirusTotal v3** and **AbuseIPDB** APIs to check extracted URLs, domains, IPs, and attachment hashes for malicious reputation.
-- 📊 **Automated Risk Scoring:** Derives an overall risk severity level (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) based on DMARC failures and malicious threat intel hits, enabling analysts to prioritize their queues.
+- 🔍 **Header Parsing:** Extracts sender, recipient, subject, dates and — most importantly — `SPF`, `DKIM` and `DMARC` results. Malformed headers are tolerated rather than fatal; see [Handling hostile input](#-handling-hostile-input).
+- 🧬 **IOC Extraction:** Pulls URLs, domains, IPv4/IPv6 addresses and `SHA-256` hashes for every attachment, walking the full MIME tree. Only **sender-controlled** headers are scanned, so your own mail relays and recipient domains are never extracted or submitted to third-party APIs.
+- 🕵️ **Identity-Mismatch Detection:** Compares the `From` domain against `Reply-To` and the envelope sender. This is what catches **business email compromise**, which carries no URL, no attachment and no malicious infrastructure for a reputation feed to score. Comparison is on the registrable domain, so ordinary bounce subdomains do not false-positive.
+- 🛡️ **Defanging:** Rewrites URLs, IPs and domains (`hxxps://evil[.]com`) so indicators can be shared without accidental execution. Attacker-controlled text is also escaped so it cannot render as a live link inside the report itself.
+- 🧠 **Threat Intel Enrichment:** Queries **VirusTotal v3** and **AbuseIPDB**, with retry backoff, a shared rate-limit budget, and non-routable addresses filtered out before any request is made.
+- 📊 **Risk Scoring:** Derives `LOW` / `MEDIUM` / `HIGH` / `CRITICAL` from authentication results, identity mismatches and confirmed-malicious hits. Unresolved lookups contribute a **capped** amount, so a missing API key or an exhausted quota cannot inflate every message to `CRITICAL`.
 
 ---
 
@@ -51,8 +51,8 @@ For Windows/VS Code users, follow these commands to set up the environment:
 
 **1. Clone the repository:**
 ```powershell
-git clone https://github.com/gurvinny/phish_extractor.git
-cd phish_extractor
+git clone https://github.com/gurvinny/Automated-Phish-Extractor.git
+cd Automated-Phish-Extractor
 ```
 
 **2. Create and activate a virtual environment:**
@@ -104,14 +104,14 @@ Run the tool against any raw `.eml` file to parse and generate a threat report.
 ### Standard Run
 To perform a full analysis with external threat intelligence queries:
 ```powershell
-python phish_extractor.py samples/mock_phish.eml -o report.md
+python phish_extractor.py samples/malicious/credential-phish.eml -o report.md
 ```
 *This extracts all IOCs, performs lookups against VirusTotal and AbuseIPDB, and outputs a formatted Markdown report.*
 
 ### Offline Mode (`--skip-intel`)
 If you want to extract IOCs and defang them **without** sending anything to external APIs (useful for highly confidential investigations or OPSEC reasons):
 ```powershell
-python phish_extractor.py samples/mock_phish.eml --skip-intel
+python phish_extractor.py samples/malicious/bec-wire-transfer.eml --skip-intel
 ```
 
 **To see all available CLI options:**
@@ -121,12 +121,73 @@ python phish_extractor.py --help
 
 ---
 
+## 🧪 Sample Corpus
+
+Eight synthetic messages ship with the tool, in [`samples/`](samples/) — three
+malicious, three clean, two deliberately malformed. Every address, domain and IP
+comes from ranges reserved for documentation, so nothing points at real
+infrastructure. Full breakdown in [`samples/README.md`](samples/README.md).
+
+```powershell
+python phish_extractor.py samples/clean/newsletter-legitimate.eml --skip-intel
+python phish_extractor.py samples/malicious/bec-wire-transfer.eml --skip-intel
+```
+
+| Corpus | Expected outcome |
+|---|---|
+| `clean/` | `LOW`, zero identity mismatches — these exist to catch **false positives**, the failure mode that actually erodes trust in a triage tool |
+| `malicious/` | `HIGH` or `CRITICAL` |
+| `edge/` | Must not crash |
+
+The test suite asserts each of those, so a regression in scoring or parsing
+fails CI rather than reaching an analyst.
+
+> **Why the samples show no IP indicators:** documentation IP ranges are not
+> globally routable, and the tool filters non-routable addresses so private and
+> reserved hops are never sent to a reputation API. That is the filter working.
+> Real captures surface IP IOCs normally.
+
+---
+
+## 🛡️ Handling Hostile Input
+
+Every input to this tool is attacker-controlled by definition, so a malformed
+message is treated as a defect to survive, not as bad input to reject:
+
+- **Malformed headers** — a bare `From: broken@` raises `IndexError` inside
+  Python's own header parser. Header reads fall back to the raw value.
+- **Bogus charsets** — a part declaring `charset="not-a-real-codec"` raises
+  `LookupError` from the codec lookup. Decoding falls back to UTF-8 with
+  replacement, which is lossy but keeps hostnames and URLs intact.
+- **Path traversal** — an attachment named `../../etc/passwd` is reduced to a
+  bare filename before it is ever displayed or written.
+- **Bidi overrides** — `invoice<U+202E>cod.scr` displays to an analyst as
+  though it ends in `.doc`. Bidirectional control characters are stripped.
+- **Report injection** — attacker text in a subject or filename cannot render
+  as a live link, break out of a code span, or shift a table column.
+
+Both crash cases above were found by the `edge/` samples and are covered by
+regression tests.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Analysis completed |
+| `2` | Input error — file missing, unreadable, oversized, or not a file |
+| `3` | Unexpected failure |
+
+---
+
 ## 🎯 Detection Engineering
 
 To effectively bridge the gap between reactive analysis and proactive defense, the `detections/` folder is included in this repository. It contains actionable detection rules formulated off of the artifacts parsed by `phish_extractor.py`:
 
-- 🟡 **`yara_rule.yar`**: A YARA rule that hunts for the specific SHA256 hash and base64 encoded malicious payload of the fake invoice document attachment in our `mock_phish.eml` sample.
-- 🟠 **`sigma_rule.yml`**: A Sigma rule designed to detect email gateway logs where DMARC fails and the subject contains the classic phishing lure `"URGENT: Your account has been temporarily restricted"`. This can be integrated into SIEM platforms for real-time alerting.
+- 🟡 **`yara_rule.yar`** — hunts the SHA-256 and base64 payload of the attachment in `samples/malicious/credential-phish.eml`.
+- 🟠 **`sigma_rule.yml`** — email-gateway logs where DMARC fails and the subject carries a known lure.
+- 🔴 **`sigma_bec_reply_to_mismatch.yml`** — mail whose `Reply-To` domain differs from the `From` domain, so a reply leaves the organisation the message claims to be from. This is the detection equivalent of the identity-mismatch check above, and the one that covers BEC, where there is no infrastructure to look up.
+
+All three parse cleanly as YAML/YARA and are validated in CI.
 
 ---
 
@@ -161,5 +222,5 @@ The defining upgrade: **v1 analyzes one email, v2 analyzes a campaign.**
 ---
 
 <div align="center">
-  <i>Developed with ❤️ by <a href="https://github.com/gurvinny">Gurvin Singh</a></i>
+  <i>Built by <a href="https://github.com/gurvinny">@gurvinny</a></i>
 </div>

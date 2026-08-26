@@ -4,10 +4,10 @@
 
 **Planned fixes, enhancements, and future direction**
 
-[![Version 1 Beta](https://img.shields.io/badge/version-1.0--beta-blue.svg?logo=github&logoColor=white)]()
-[![Version 2](https://img.shields.io/badge/version-2.0-orange.svg?logo=github&logoColor=white)]()
-[![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Version](https://img.shields.io/badge/version-1.0--beta-blue?style=for-the-badge&logo=github&logoColor=white)](ROADMAP.md)
+[![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor?style=for-the-badge&logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE.md)
 
 <p align="center">
   <em>This document tracks what's being fixed in v1 and what's being built in v2.</em>
@@ -144,5 +144,5 @@ v2.0  ░░░░░░░░░░░░░░░░░░  Campaign intellige
 ---
 
 <div align="center">
-  <i>Developed with ❤️ by <a href="https://github.com/gurvinny">Gurvin Singh</a></i>
+  <i>Built by <a href="https://github.com/gurvinny">@gurvinny</a></i>
 </div>
