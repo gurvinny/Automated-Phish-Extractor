@@ -15,6 +15,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import phish_extractor
 
 
+SAMPLES = Path(__file__).parent.parent / "samples"
+
+
 class TestPhishExtractor(unittest.TestCase):
 
     def test_defang_url(self):
@@ -34,7 +37,7 @@ class TestPhishExtractor(unittest.TestCase):
         self.assertEqual(defanged, "malicious-site[.]com")
 
     def test_parse_eml_headers(self):
-        sample_eml = Path(__file__).parent.parent / "samples" / "mock_phish.eml"
+        sample_eml = SAMPLES / "malicious" / "credential-phish.eml"
         msg = phish_extractor.parse_eml(sample_eml)
         headers = phish_extractor.extract_headers(msg)
         attach = phish_extractor.extract_attachments(msg)
@@ -207,6 +210,91 @@ Hello
         self.assertEqual(
             phish_extractor._sender_clause("by mx.ourcompany.example with ESMTP"), ""
         )
+
+    # ---- sample corpus -------------------------------------------------
+
+    def _analyse(self, path: Path):
+        msg = phish_extractor.parse_eml(path)
+        headers = phish_extractor.extract_headers(msg)
+        blob = phish_extractor.build_header_ioc_blob(msg, headers)
+        iocs = phish_extractor.extract_iocs(
+            phish_extractor.get_body_text(msg) + "\n" + blob
+        )
+        count = (
+            len(iocs.urls)
+            + len(iocs.domains)
+            + len(iocs.ipv4_addresses)
+            + len(iocs.ipv6_addresses)
+        )
+        # Simulate a run with no API keys: every lookup fails.
+        intel = [
+            phish_extractor.ThreatIntelResult(
+                ioc=str(i), source="VirusTotal", error="VT_API_KEY not set"
+            )
+            for i in range(count)
+        ]
+        return headers, iocs, phish_extractor.calculate_risk(headers, intel)
+
+    def test_every_sample_parses_without_crashing(self):
+        """No sample — including deliberately malformed ones — may raise."""
+        found = sorted(SAMPLES.rglob("*.eml"))
+        self.assertGreaterEqual(len(found), 8, "sample corpus is missing files")
+        for path in found:
+            with self.subTest(sample=path.name):
+                self._analyse(path)
+
+    def test_clean_samples_score_low(self):
+        """Legitimate mail must not be flagged, even with no API keys."""
+        for path in sorted((SAMPLES / "clean").glob("*.eml")):
+            with self.subTest(sample=path.name):
+                headers, _, risk = self._analyse(path)
+                self.assertEqual(risk, "LOW")
+                self.assertEqual(phish_extractor.detect_identity_mismatches(headers), [])
+
+    def test_malicious_samples_score_high_or_above(self):
+        for path in sorted((SAMPLES / "malicious").glob("*.eml")):
+            with self.subTest(sample=path.name):
+                _, _, risk = self._analyse(path)
+                self.assertIn(risk, ("HIGH", "CRITICAL"))
+
+    def test_bec_sample_is_caught_without_any_iocs(self):
+        """BEC carries no malicious infrastructure — identity signals must catch it."""
+        path = SAMPLES / "malicious" / "bec-wire-transfer.eml"
+        headers, _, risk = self._analyse(path)
+        self.assertEqual(headers.spf_result, "pass")
+        self.assertEqual(headers.dkim_result, "pass")
+        self.assertGreaterEqual(len(phish_extractor.detect_identity_mismatches(headers)), 1)
+        self.assertIn(risk, ("HIGH", "CRITICAL"))
+
+    def test_malformed_headers_do_not_crash(self):
+        """A bare 'From: broken@' crashes the stdlib parser; we must survive it."""
+        path = SAMPLES / "edge" / "malformed-and-traversal.eml"
+        msg = phish_extractor.parse_eml(path)
+        headers = phish_extractor.extract_headers(msg)
+        self.assertIsInstance(headers.from_addr, str)
+
+    def test_bogus_charset_does_not_crash(self):
+        path = SAMPLES / "edge" / "malformed-and-traversal.eml"
+        msg = phish_extractor.parse_eml(path)
+        body = phish_extractor.get_body_text(msg)
+        self.assertIn("nested.example.net", body)
+
+    def test_attachment_path_traversal_is_sanitised(self):
+        path = SAMPLES / "edge" / "malformed-and-traversal.eml"
+        msg = phish_extractor.parse_eml(path)
+        names = [a.filename for a in phish_extractor.extract_attachments(msg)]
+        self.assertIn("passwd", names)
+        for name in names:
+            self.assertNotIn("/", name)
+            self.assertNotIn("..", name)
+
+    def test_identity_mismatch_ignores_subdomain_of_same_org(self):
+        """Bounce subdomains are normal; flagging them would be a false positive."""
+        headers = phish_extractor.EmailHeaders(
+            from_addr="weekly@news.example.org",
+            return_path="<newsletter-bounces@news.example.org>",
+        )
+        self.assertEqual(phish_extractor.detect_identity_mismatches(headers), [])
 
     def test_rate_limit_detection_ignores_429_inside_urls(self):
         """A 503 on a host containing '429' must not be treated as a quota error."""

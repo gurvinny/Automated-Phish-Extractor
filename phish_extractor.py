@@ -197,6 +197,7 @@ class EmailHeaders:
     date: str = ""
     message_id: str = ""
     return_path: str = ""
+    reply_to: str = ""
     received_chain: list[str] = field(default_factory=list)
     # THOUGHT PROCESS: SPF, DKIM and DMARC results are the first-line
     # indicators of spoofing.  A SOC analyst should check these *before*
@@ -304,6 +305,60 @@ def parse_eml(file_path: Path) -> EmailMessage:
     return msg
 
 
+def _safe_header(msg: EmailMessage, name: str) -> str:
+    """Read a single header without trusting it to be well-formed.
+
+    ``email.policy.default`` parses structured headers eagerly, and malformed
+    input crashes the stdlib parser rather than returning a degraded value —
+    a bare ``From: broken@`` raises ``IndexError`` from
+    ``_header_value_parser.get_domain``.  Since every input to this tool is
+    attacker-controlled by definition, a single malformed header must not be
+    able to end the run.  Falling back to the raw undecoded value keeps the
+    IOC and reporting paths working on exactly the messages most likely to be
+    hostile.
+
+    Args:
+        msg: The parsed message.
+        name: Header name to read.
+
+    Returns:
+        The header value, or the raw source value if structured parsing
+        fails, or an empty string if the header is absent or unreadable.
+    """
+    try:
+        value = msg.get(name, "")
+        return str(value) if value is not None else ""
+    except (IndexError, ValueError, AttributeError, TypeError) as exc:
+        log.warning("Malformed %s header; falling back to raw value (%s)", name, exc)
+        try:
+            raw = msg.get_raw(name) if hasattr(msg, "get_raw") else None
+            if raw:
+                return str(raw)
+            # Last resort: pull the undecoded line straight out of the source.
+            for key, val in msg.raw_items():
+                if key.lower() == name.lower():
+                    return str(val)
+        except Exception:  # pragma: no cover - defensive
+            pass
+        return ""
+
+
+def _safe_header_all(msg: EmailMessage, name: str) -> list[str]:
+    """Read every instance of a repeated header, skipping unparseable ones."""
+    values: list[str] = []
+    try:
+        raw_values = msg.get_all(name, [])
+    except (IndexError, ValueError, AttributeError, TypeError) as exc:
+        log.warning("Malformed %s header set; skipping (%s)", name, exc)
+        return values
+    for value in raw_values:
+        try:
+            values.append(str(value))
+        except (IndexError, ValueError, AttributeError, TypeError):
+            log.warning("Skipping one malformed %s header", name)
+    return values
+
+
 def extract_headers(msg: EmailMessage) -> EmailHeaders:
     """Pull envelope headers and authentication results from the message.
 
@@ -314,18 +369,17 @@ def extract_headers(msg: EmailMessage) -> EmailHeaders:
         An ``EmailHeaders`` dataclass with all relevant fields populated.
     """
     headers = EmailHeaders(
-        subject=str(msg.get("Subject", "")),
-        from_addr=str(msg.get("From", "")),
-        to_addr=str(msg.get("To", "")),
-        date=str(msg.get("Date", "")),
-        message_id=str(msg.get("Message-ID", "")),
-        return_path=str(msg.get("Return-Path", "")),
+        subject=_safe_header(msg, "Subject"),
+        from_addr=_safe_header(msg, "From"),
+        to_addr=_safe_header(msg, "To"),
+        date=_safe_header(msg, "Date"),
+        message_id=_safe_header(msg, "Message-ID"),
+        return_path=_safe_header(msg, "Return-Path"),
+        reply_to=_safe_header(msg, "Reply-To"),
     )
 
     # Collect full Received chain (most recent first)
-    headers.received_chain = [
-        str(v) for v in msg.get_all("Received", [])
-    ]
+    headers.received_chain = _safe_header_all(msg, "Received")
 
     # THOUGHT PROCESS: The Authentication-Results header is added by the
     # *receiving* MTA after performing SPF, DKIM and DMARC checks.  Parsing
@@ -336,7 +390,7 @@ def extract_headers(msg: EmailMessage) -> EmailHeaders:
     #     a fail means the content may have been tampered with in transit.
     #   • DMARC ties SPF + DKIM together with a policy (reject/quarantine/
     #     none) — a fail often triggers automatic quarantine.
-    auth_results: str = str(msg.get("Authentication-Results", ""))
+    auth_results: str = _safe_header(msg, "Authentication-Results")
     headers.spf_result = _extract_auth_result(auth_results, "spf")
     headers.dkim_result = _extract_auth_result(auth_results, "dkim")
     headers.dmarc_result = _extract_auth_result(auth_results, "dmarc")
@@ -423,6 +477,41 @@ def _sender_clause(received: str) -> str:
 # 2. BODY TEXT EXTRACTION
 # ===================================================================
 
+def _decode_part(part: EmailMessage) -> str:
+    """Decode one MIME part's text, tolerating attacker-chosen charsets.
+
+    ``get_content()`` resolves the declared charset through ``codecs``, so a
+    part claiming ``charset="definitely-not-a-charset"`` raises ``LookupError``
+    and would abort the whole run.  A hostile sender can therefore hide a
+    payload behind a bogus charset, or simply deny service.  When the declared
+    charset is unusable the raw bytes are decoded as UTF-8 with replacement,
+    which is lossy but keeps URLs and hostnames — the things IOC extraction
+    needs — intact.
+
+    Args:
+        part: A single MIME part.
+
+    Returns:
+        The decoded text, or an empty string if nothing could be recovered.
+    """
+    try:
+        payload = part.get_content()
+        return payload if isinstance(payload, str) else ""
+    except (LookupError, UnicodeDecodeError, ValueError, AssertionError) as exc:
+        log.warning(
+            "Undecodable %s part (%s); retrying as UTF-8 with replacement",
+            part.get_content_type(),
+            exc,
+        )
+    try:
+        raw = part.get_payload(decode=True)
+        if isinstance(raw, (bytes, bytearray)):
+            return raw.decode("utf-8", errors="replace")
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("Could not recover part payload: %s", exc)
+    return ""
+
+
 def get_body_text(msg: EmailMessage) -> str:
     """Recursively extract all plain-text and HTML body parts.
 
@@ -446,12 +535,12 @@ def get_body_text(msg: EmailMessage) -> str:
         for part in msg.walk():
             ctype: str = part.get_content_type()
             if ctype in ("text/plain", "text/html"):
-                payload = part.get_content()
-                if isinstance(payload, str):
+                payload = _decode_part(part)
+                if payload:
                     parts.append(payload)
     else:
-        payload = msg.get_content()
-        if isinstance(payload, str):
+        payload = _decode_part(msg)
+        if payload:
             parts.append(payload)
 
     body = "\n".join(parts)
@@ -1109,6 +1198,62 @@ def _with_rate_limit_backoff(
 # 9. RISK SCORING
 # ===================================================================
 
+def _addr_domain(value: str) -> str:
+    """Return the lowercased domain of the first email address in a header.
+
+    Args:
+        value: A raw header value, possibly ``"Name" <user@example.com>``.
+
+    Returns:
+        The domain, or an empty string if none is present.
+    """
+    match = re.search(r"[\w.+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})", value or "")
+    return match.group(1).lower().rstrip(".") if match else ""
+
+
+def _registrable(domain: str) -> str:
+    """Reduce a hostname to its last two labels for a coarse same-org check."""
+    parts = [p for p in domain.split(".") if p]
+    return ".".join(parts[-2:]) if len(parts) >= 2 else domain
+
+
+def detect_identity_mismatches(headers: EmailHeaders) -> list[str]:
+    """Flag sender-identity inconsistencies that IOC lookups cannot see.
+
+    Business email compromise is the highest-loss phishing category and
+    frequently carries **no URL, no attachment and no malicious infrastructure**
+    — nothing an IOC feed can score.  What it does carry is a mismatch between
+    the identity being claimed and the address that would actually receive a
+    reply.  These checks give that class of message a score of its own.
+
+    Args:
+        headers: Parsed envelope headers.
+
+    Returns:
+        Human-readable descriptions of each mismatch found.
+    """
+    findings: list[str] = []
+    from_domain = _addr_domain(headers.from_addr)
+    reply_domain = _addr_domain(headers.reply_to)
+    envelope_domain = _addr_domain(headers.return_path)
+
+    if from_domain and reply_domain and _registrable(reply_domain) != _registrable(from_domain):
+        findings.append(
+            f"Reply-To domain ({reply_domain}) differs from From domain ({from_domain}) — "
+            "a reply would leave the claimed organisation"
+        )
+    if (
+        from_domain
+        and envelope_domain
+        and _registrable(envelope_domain) != _registrable(from_domain)
+    ):
+        findings.append(
+            f"Envelope sender ({envelope_domain}) differs from From domain ({from_domain}) — "
+            "the visible sender is not the sending domain"
+        )
+    return findings
+
+
 def calculate_risk(
     headers: EmailHeaders,
     intel: list[ThreatIntelResult],
@@ -1121,7 +1266,8 @@ def calculate_risk(
       * DMARC *quarantine*         → +1
       * Each malicious VT result   → +3
       * Each AbuseIPDB score ≥ 75  → +3
-      * API errors (blind spots)   → +1 each
+      * Reply-To / envelope domain mismatch → +2 each
+      * API errors (blind spots)   → capped, see below
 
     Thresholds:  0–2 LOW | 3–5 MEDIUM | 6–9 HIGH | 10+ CRITICAL
 
@@ -1147,6 +1293,10 @@ def calculate_risk(
         score += 2
     elif headers.dmarc_result == "quarantine":
         score += 1
+
+    # Identity mismatches carry weight on their own, because a BEC message
+    # can be entirely free of IOCs and still be the costliest mail of the day.
+    score += 2 * len(detect_identity_mismatches(headers))
 
     for res in intel:
         if res.malicious:
