@@ -6,7 +6,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-2ea043?style=for-the-badge)](https://github.com/gurvinny/Automated-Phish-Extractor/pulls)
 [![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Maintained](https://img.shields.io/badge/maintained-yes-2ea043?style=for-the-badge)](https://github.com/gurvinny/Automated-Phish-Extractor/graphs/commit-activity)
-[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE.md)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE)
 
 <p align="center">
   Help us build a faster, more secure way for SOC analysts to fight phishing.
@@ -55,7 +55,7 @@ As a project intended for a professional cybersecurity portfolio, we maintain hi
 ---
 
 ## ⚖️ License
-By contributing, you agree that your contributions will be licensed under the project's [MIT License](LICENSE.md).
+By contributing, you agree that your contributions will be licensed under the project's [MIT License](LICENSE).
 
 ---
 

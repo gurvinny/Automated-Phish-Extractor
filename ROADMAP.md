@@ -7,7 +7,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
 [![Version](https://img.shields.io/badge/version-1.0--beta-blue?style=for-the-badge&logo=github&logoColor=white)](ROADMAP.md)
 [![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor?style=for-the-badge&logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
-[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE.md)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <em>This document tracks what's being fixed in v1 and what's being built in v2.</em>
