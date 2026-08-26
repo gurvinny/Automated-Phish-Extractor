@@ -38,7 +38,7 @@ By fully automating the manual labor of parsing headers, calculating file hashes
 - 🕵️ **Identity-Mismatch Detection:** Compares the `From` domain against `Reply-To` and the envelope sender. This is what catches **business email compromise**, which carries no URL, no attachment and no malicious infrastructure for a reputation feed to score. Comparison is on the registrable domain, so ordinary bounce subdomains do not false-positive.
 - 🛡️ **Defanging:** Rewrites URLs, IPs and domains (`hxxps://evil[.]com`) so indicators can be shared without accidental execution. Attacker-controlled text is also escaped so it cannot render as a live link inside the report itself.
 - 🧠 **Threat Intel Enrichment:** Queries **VirusTotal v3** and **AbuseIPDB**, with retry backoff, a shared rate-limit budget, and non-routable addresses filtered out before any request is made.
-- 📊 **Risk Scoring:** Derives `LOW` / `MEDIUM` / `HIGH` / `CRITICAL` from authentication results, identity mismatches and confirmed-malicious hits. Unresolved lookups contribute a **capped** amount, so a missing API key or an exhausted quota cannot inflate every message to `CRITICAL`.
+- 📊 **Risk Scoring:** Derives `LOW` / `MEDIUM` / `HIGH` / `CRITICAL` from authentication results, identity mismatches and confirmed-malicious hits. Unresolved lookups contribute a **capped** amount, so a missing API key or an exhausted quota cannot inflate every message to `CRITICAL`. An indicator VirusTotal has simply never seen is reported as *unknown* rather than as an error — a newly registered phishing domain is always unknown, and penalising it for being new would work against the tool.
 
 ---
 
@@ -176,6 +176,40 @@ regression tests.
 | `0` | Analysis completed |
 | `2` | Input error — file missing, unreadable, oversized, or not a file |
 | `3` | Unexpected failure |
+
+---
+
+## 🔬 Running the Test Suite
+
+The default suite is fully offline — no network, no keys, no quota:
+
+```powershell
+python -m unittest discover -s tests
+```
+
+### Live API tests (opt-in)
+
+A second suite exercises the real VirusTotal and AbuseIPDB endpoints. It is
+gated behind **two** conditions: keys configured **and** an explicit opt-in.
+
+```powershell
+$env:RUN_LIVE_API_TESTS=1
+python -m unittest tests.test_live_api -v
+```
+
+Both gates exist deliberately. Someone with working keys in `.env` running the
+default suite should not silently make outbound requests or spend quota —
+opting in has to be an act.
+
+These cover the one thing a mock cannot: that provider **response schemas still
+match what the parser expects**. A mock encodes our assumption; only a live call
+tests the provider's reality. They deliberately do *not* assert specific
+verdicts, because reputation data changes and a suite that fails when an
+unrelated domain's score moves is a suite people learn to ignore.
+
+> **Do not add these keys to GitHub Actions.** CI stays offline and mocked:
+> live calls are rate-limited, non-deterministic, and would put credentials in
+> the automation of a public repository for no testing benefit.
 
 ---
 

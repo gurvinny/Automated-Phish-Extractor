@@ -338,6 +338,21 @@ Hello
         self.assertNotIn("\u202e", cleaned)
         self.assertTrue(cleaned.endswith(".scr"))
 
+    def test_unknown_indicator_is_not_counted_as_uncertainty(self):
+        """A VT 404 is the normal state for a new phishing domain, not a failure."""
+        headers = phish_extractor.EmailHeaders(
+            spf_result="pass", dkim_result="pass", dmarc_result="pass"
+        )
+        unknown = [
+            phish_extractor.ThreatIntelResult(
+                ioc=f"new-domain-{i}.example",
+                source="VirusTotal",
+                not_found=True,
+            )
+            for i in range(8)
+        ]
+        self.assertEqual(phish_extractor.calculate_risk(headers, unknown), "LOW")
+
     def test_rate_limit_detection_ignores_429_inside_urls(self):
         """A 503 on a host containing '429' must not be treated as a quota error."""
         result = phish_extractor.ThreatIntelResult(

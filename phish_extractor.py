@@ -245,6 +245,7 @@ class ThreatIntelResult:
     details: dict[str, Any] = field(default_factory=dict)
     error: str = ""
     rate_limited: bool = False
+    not_found: bool = False
 
 
 @dataclass
@@ -949,7 +950,12 @@ def _virustotal_get(
             return result
 
         if resp.status_code == 404:
-            result.error = "Not found in VirusTotal database"
+            # THOUGHT PROCESS: a 404 means VirusTotal has never seen this
+            # indicator — which is the *normal* state for a freshly registered
+            # phishing domain, i.e. precisely the mail worth catching.  Treating
+            # it as an error would penalise the newest campaigns for being new,
+            # and would show an analyst an "Error" where the tool worked fine.
+            result.not_found = True
             log.info("VT 404 for %s", ioc_label)
             return result
 
@@ -1352,7 +1358,7 @@ def calculate_risk(
     # CRITICAL purely because the tool could not reach its providers.  The
     # contribution is therefore capped, and a total failure is treated as one
     # signal rather than N.
-    errored = sum(1 for res in intel if res.error)
+    errored = sum(1 for res in intel if res.error and not res.not_found)
     if errored:
         score += 1 if errored == len(intel) else min(errored, MAX_UNCERTAINTY_SCORE)
 
@@ -1562,6 +1568,8 @@ def report_to_markdown(report: ThreatReport) -> str:
             ioc_display: str = safe_code_md(
                 defang_url(ti.ioc) if "://" in ti.ioc else defang_domain(ti.ioc)
             )
+            if ti.not_found:
+                det_str = "Not in database"
             lines.append(
                 f"| `{ioc_display}` | {safe_md(ti.source)} | {mal_str} | "
                 f"{safe_md(det_str)} | {safe_md(ti.error) if ti.error else '—'} |"
