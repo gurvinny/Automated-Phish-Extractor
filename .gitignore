@@ -21,4 +21,7 @@ env/
 !samples/*.msg
 
 # Build artifacts and reports
-reports/deps/
+reports/
+
+# Vendored dependencies
+deps/
