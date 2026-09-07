@@ -31,6 +31,35 @@ By fully automating the manual labor of parsing headers, calculating file hashes
 
 ---
 
+## 📸 What It Looks Like
+
+<div align="center">
+<img src="docs/screenshots/03-report.png" alt="Rendered analysis report showing headers, authentication results, defanged IOCs, attachment hash and threat-intel enrichment" width="100%"/>
+<br/><sub>The report an analyst actually reads. Every indicator is defanged; the attachment is identified by hash.</sub>
+</div>
+
+<br/>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/screenshots/02-run.png" alt="Live triage run showing each VirusTotal and AbuseIPDB lookup"/>
+<br/><sub><b>A live run.</b> Each lookup is logged as it happens. Two of the three IP indicators come back confirmed malicious; the third scores 52% and is deliberately <i>not</i> flagged, because the threshold is 75%.</sub>
+</td>
+<td width="50%" valign="top">
+<img src="docs/screenshots/01-tests.png" alt="Test suite output: 37 tests, 6 skipped"/>
+<br/><sub><b>The suite.</b> 37 tests, of which 6 are live-API tests skipped unless you opt in. The other 31 need no keys and no network.</sub>
+</td>
+</tr>
+</table>
+
+> The message in these captures is synthetic. The **IP addresses are real** and were enriched
+> live against AbuseIPDB — that is why two of them come back malicious. They exist only in a local
+> test message and are **not** part of the committed sample corpus; see
+> [`samples/README.md`](samples/README.md) for exactly what that corpus does and does not contain.
+
+---
+
 ## ✨ Features
 
 - 🔍 **Header Parsing:** Extracts sender, recipient, subject, dates and — most importantly — `SPF`, `DKIM` and `DMARC` results. Malformed headers are tolerated rather than fatal; see [Handling hostile input](#-handling-hostile-input).
