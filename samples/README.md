@@ -1,22 +1,38 @@
 # Sample Corpus
 
 Eight synthetic messages used by the test suite and for demonstrating the tool.
-Every address, domain and IP is drawn from the ranges reserved for documentation
-(RFC 2606 `example.com` / `.org` / `.net`, RFC 5737 and RFC 3849 address blocks),
-so nothing here points at real infrastructure.
+Recipients, internal hosts and every IP address are drawn from the ranges reserved
+for documentation (RFC 2606 `example.com` / `.org` / `.net`, RFC 5737 and RFC 3849),
+so nothing here resolves to real infrastructure.
+
+The one exception is deliberate: `credential-phish.eml` needs a *lookalike* sender
+domain for the scenario to make sense, and a reserved domain cannot look like a
+brand. It uses invented strings such as `paypal-support-update.com`. These are
+registrable names rather than reserved ones — they are not owned by this project
+and are not resolved, contacted or submitted to any API by the test suite, which
+runs fully offline.
 
 ## `malicious/`
 
-| Sample | What it exercises | Expected risk |
+Verdicts below are what an **offline** run produces (`--skip-intel`), which is how
+the test suite scores them. A live run can score higher if VirusTotal or AbuseIPDB
+returns a confirmed-malicious hit, but never lower.
+
+| Sample | What it exercises | Offline risk |
 |---|---|---|
-| `credential-phish.eml` | Classic credential harvest: SPF/DKIM/DMARC all fail, lookalike sender domain, URL in both the plain and HTML parts, PDF attachment | HIGH |
-| `invoice-macro-dropper.eml` | Macro-enabled attachment, quoted-printable body, SPF softfail, and a **compressed IPv6 address** in the Received chain | CRITICAL |
-| `bec-wire-transfer.eml` | Business email compromise: **no URL, no attachment, and SPF/DKIM both pass.** Carries only a display-name spoof and a Reply-To pointing off-domain | HIGH |
+| `credential-phish.eml` | Classic credential harvest: SPF/DKIM/DMARC all fail, lookalike sender domain, URL in both the plain and HTML parts, PDF attachment | `HIGH` |
+| `invoice-macro-dropper.eml` | Macro-enabled attachment, quoted-printable body, SPF softfail, and a **compressed IPv6 address** in the Received chain | `HIGH` |
+| `bec-wire-transfer.eml` | Business email compromise: **no URL, no attachment, and SPF/DKIM both pass.** Carries only a display-name spoof and a Reply-To pointing off-domain | `MEDIUM` |
 
 The BEC sample is the important one. It is invisible to reputation feeds and
 attachment sandboxing — there is nothing to look up. It is caught by comparing
 the claimed sender identity against the address that would actually receive a
 reply.
+
+It scores `MEDIUM` rather than `HIGH`, and that is the honest result: with no URL,
+no attachment and passing authentication, the identity mismatch is the *only*
+signal available. Raising it further would mean inflating a single indicator into
+a verdict the evidence does not support.
 
 ## `clean/`
 
@@ -50,3 +66,18 @@ filters non-routable addresses so private and reserved hops are never sent to
 reputation APIs. A consequence is that these samples produce no IP indicators
 even where an address appears in the headers — that is the filter working, not a
 parsing failure. Real captures will surface IP IOCs normally.
+
+## `test_report.md`
+
+A committed example of the Markdown output, regenerated from a real run:
+
+```bash
+python3 phish_extractor.py samples/malicious/invoice-macro-dropper.eml --skip-intel \
+  -f markdown -o samples/test_report.md
+```
+
+It is generated with `--skip-intel` on purpose. An offline run is deterministic
+and reproducible by anyone who clones the repo, whereas a live run would bake in
+VirusTotal and AbuseIPDB responses that change over time and would go stale the
+same way the previous version of this file did. Its **Threat Intelligence**
+section is therefore empty — that is the flag working, not a missing feature.

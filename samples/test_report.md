@@ -1,8 +1,8 @@
 # Phishing Email Analysis Report
 
-**Analysis Timestamp:** 2026-03-11T21:20:16.426599+00:00  
-**Source File:** `mock_phish.eml`  
-**Risk Level:** 🟡 **MEDIUM**
+**Analysis Timestamp:** 2026-09-07T20:32:48.382314+00:00  
+**Source File:** `invoice-macro-dropper.eml`  
+**Risk Level:** 🟠 **HIGH**
 
 ---
 
@@ -10,24 +10,24 @@
 
 | Field | Value |
 |-------|-------|
-| **Subject** | URGENT: Your account has been temporarily restricted |
-| **From** | PayPal Security <alerts@paypal-support-update[.]com> |
-| **To** | victim@yourcompany.com |
-| **Date** | Wed, 11 Mar 2026 10:00:00 -0400 |
-| **Message-ID** | `<9876543210@evil-phishing-domain.net>` |
-| **Return-Path** | <bounces@evil-phishing-domain[.]net> |
+| **Subject** | Outstanding invoice INV-40921 - payment overdue |
+| **From** | Accounts Payable \<billing@accounts-payable\[.\]example\[.\]org\> |
+| **To** | ap@example.com |
+| **Date** | Mon, 09 Mar 2026 08:14:22 -0400 |
+| **Message-ID** | `\<40921.1741521262@invoice-delivery-secure.example.net\>` |
+| **Return-Path** | \<billing@invoice-delivery-secure\[.\]example\[.\]net\> |
 
 ### Authentication Results
 
 | Check | Result |
 |-------|--------|
-| **SPF** | `fail` |
-| **DKIM** | `none` |
+| **SPF** | `softfail` |
+| **DKIM** | `fail` |
 | **DMARC** | `fail` |
 
 ### Received Chain (most recent first)
 
-1. `from mail.evil-phishing-domain.net (mail.evil-phishing-domain.net [198.51.100.42]) by mx.yourcompany.com with ESMTP id 1…`
+1. `from relay.invoice-delivery-secure.example.net (relay.invoice-delivery-secure.example.net [2001:db8:3c4d:15::1a2b]) by m…`
 
 ---
 
@@ -35,11 +35,13 @@
 
 ### URLs
 
-- `hxxp://secure-update-billing-verification[.]com/login.php?session=8932`
+- `hxxps://payment-portal-verify[.]example[.]net/account/inv40921`
 
 ### Domains
 
-- `login[.]php`
+- `accounts-payable[.]example[.]org`
+- `invoice-delivery-secure[.]example[.]net`
+- `relay[.]invoice-delivery-secure[.]example[.]net`
 
 ---
 
@@ -47,7 +49,7 @@
 
 | Filename | Content-Type | Size (bytes) | SHA-256 |
 |----------|-------------|-------------|---------|
-| Invoice_78291.pdf | application/pdf | 54 | `71e4a2e3c287d386ca40134b5bb70c947f4d8bd9cb4265d1bd72bb3d3e8302a5` |
+| INV-40921.docm | application/vnd.ms-word.document.macroenabled.12 | 56 | `6e7d3c3f385014f139068e49af496c0bdbc01031dac4bb036838e6b35fa5cfb0` |
 
 ---
 
@@ -57,4 +59,4 @@ _No threat intelligence data collected._
 
 ---
 
-> **Automated risk assessment: 🟡 MEDIUM** — Review the IOCs and threat-intel data above before making a final determination.
+> **Automated risk assessment: 🟠 HIGH** — Review the IOCs and threat-intel data above before making a final determination.

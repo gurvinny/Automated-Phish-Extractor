@@ -25,18 +25,16 @@
 
 ### 🐛 Bug Fixes
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#7](https://github.com/gurvinny/Automated-Phish-Extractor/issues/7) | IPv6 regex misses compressed and mixed-notation addresses | `IPV6_PATTERN` fails to match `2001:db8::1`, `::ffff:192.0.2.1`, and similar compressed forms |
-| [#10](https://github.com/gurvinny/Automated-Phish-Extractor/issues/10) | Risk scoring ignores SPF softfail and DMARC quarantine | `calculate_risk()` only counts `fail` — `softfail` and `quarantine` contribute zero to the score |
-| [#12](https://github.com/gurvinny/Automated-Phish-Extractor/issues/12) | `--output` path not validated | Format/extension mismatch silently produces garbled output |
-| [#16](https://github.com/gurvinny/Automated-Phish-Extractor/issues/16) | False positive domain extraction | File extensions (`.php`, `.html`, `.asp`) matched as domain IOCs |
-| [#17](https://github.com/gurvinny/Automated-Phish-Extractor/issues/17) | No IPv6 private/loopback address filtering | Private IPv6 addresses bypass the routable check and reach API enrichment |
-| [#18](https://github.com/gurvinny/Automated-Phish-Extractor/issues/18) | Inconsistent email header defanging | `From` is defanged but `To` is not; `defang_domain()` called on full `user@host` strings |
-| [#6](https://github.com/gurvinny/Automated-Phish-Extractor/issues/6) | IOC extraction never scans email headers | `Received`, `Reply-To`, and `X-Originating-IP` headers are ignored during IOC extraction |
-| [#5](https://github.com/gurvinny/Automated-Phish-Extractor/issues/5) | No rate-limit back-off between API calls | HTTP 429 responses are reported but never retried with exponential back-off |
-
----
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#5](https://github.com/gurvinny/Automated-Phish-Extractor/issues/5) | No rate-limit back-off between API calls | HTTP 429 responses are reported but never retried with exponential back-off | ✅ Fixed — `_with_rate_limit_backoff()` + a shared `RateLimitBudget` |
+| [#6](https://github.com/gurvinny/Automated-Phish-Extractor/issues/6) | IOC extraction never scans email headers | `Received`, `Reply-To`, and `X-Originating-IP` headers are ignored during IOC extraction | ✅ Fixed — `build_header_ioc_blob()`, scoped to sender-controlled headers only |
+| [#7](https://github.com/gurvinny/Automated-Phish-Extractor/issues/7) | IPv6 regex misses compressed and mixed-notation addresses | `IPV6_PATTERN` fails to match `2001:db8::1`, `::ffff:192.0.2.1`, and similar compressed forms | ✅ Fixed — compressed forms are matched first, or the address is truncated |
+| [#10](https://github.com/gurvinny/Automated-Phish-Extractor/issues/10) | Risk scoring ignores SPF softfail and DMARC quarantine | `calculate_risk()` only counts `fail` | ✅ Fixed — softfail and quarantine each score `+1` |
+| [#16](https://github.com/gurvinny/Automated-Phish-Extractor/issues/16) | False positive domain extraction | File extensions (`.php`, `.html`, `.asp`) matched as domain IOCs | ✅ Fixed — `_FILE_EXT_RE` |
+| [#17](https://github.com/gurvinny/Automated-Phish-Extractor/issues/17) | No IPv6 private/loopback address filtering | Private IPv6 addresses bypass the routable check and reach API enrichment | ✅ Fixed — `_is_routable_ipv6()`, applied before any request |
+| [#12](https://github.com/gurvinny/Automated-Phish-Extractor/issues/12) | `--output` path not validated | Format/extension mismatch silently produces garbled output | ⬜ Open |
+| [#18](https://github.com/gurvinny/Automated-Phish-Extractor/issues/18) | Inconsistent email header defanging | `defang_domain()` is called on full `user@host` strings, so the local-part dot is defanged too | 🟨 Partly fixed — `To` is now defanged; the address-vs-domain split remains |
 
 ### 🔒 Security
 
@@ -50,10 +48,12 @@
 
 ### ✨ Enhancements
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#13](https://github.com/gurvinny/Automated-Phish-Extractor/issues/13) | Filter tracking pixels | 1×1 transparent GIF/PNG attachments should be excluded from VT lookups and reports |
-| [#14](https://github.com/gurvinny/Automated-Phish-Extractor/issues/14) | Parallelise API enrichment | Replace sequential blocking calls with `ThreadPoolExecutor` to reduce total enrichment time |
+Neither of these has shipped.
+
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#13](https://github.com/gurvinny/Automated-Phish-Extractor/issues/13) | Filter tracking pixels | 1×1 transparent GIF/PNG attachments should be excluded from VT lookups and reports | ⬜ Open |
+| [#14](https://github.com/gurvinny/Automated-Phish-Extractor/issues/14) | Parallelise API enrichment | Replace sequential blocking calls with `ThreadPoolExecutor` to reduce total enrichment time | ⬜ Open — enrichment is currently strictly sequential |
 
 ---
 

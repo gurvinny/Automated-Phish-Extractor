@@ -76,7 +76,6 @@ Available environment settings in `.env`:
 - `VT_API_KEY`: Your VirusTotal v3 API key.
 - `ABUSEIPDB_API_KEY`: Your AbuseIPDB API key.
 - `MAX_EML_SIZE_MB`: Maximum permitted `.eml` file size in MB (default: `25`).
-- `MIN_ATTACHMENT_BYTES`: Minimum attachment size threshold in bytes (default: `256`).
 
 > ⚠️ **Never commit your `.env` file.** It is listed in `.gitignore` to prevent accidental exposure.
 > If you accidentally push secrets, **rotate your API keys immediately** via the VirusTotal and AbuseIPDB dashboards — treat any exposed key as compromised.
@@ -136,7 +135,7 @@ python phish_extractor.py samples/malicious/bec-wire-transfer.eml --skip-intel
 | Corpus | Expected outcome |
 |---|---|
 | `clean/` | `LOW`, zero identity mismatches — these exist to catch **false positives**, the failure mode that actually erodes trust in a triage tool |
-| `malicious/` | `HIGH` or `CRITICAL` |
+| `malicious/` | `MEDIUM` or higher — see `samples/README.md` for the per-message verdict |
 | `edge/` | Must not crash |
 
 The test suite asserts each of those, so a regression in scoring or parsing
@@ -236,10 +235,11 @@ Focused on fixing known bugs, closing security gaps, and building a test suite b
 
 | Category | Highlights |
 |----------|------------|
-| 🐛 Bug Fixes | IPv6 regex, false positive IOC extraction, inconsistent defanging, risk scoring gaps |
-| 🔒 Security | API key leak prevention, file-size limits, attachment filename sanitisation |
-| ✨ Enhancements | Tracking pixel filtering, parallelised API enrichment |
-| 📚 Docs & Testing | pytest suite, `.env.example`, secrets-management guidance |
+| 🐛 Bug Fixes | ✅ IPv6 regex, header IOC extraction, rate-limit back-off, false-positive domains, non-routable filtering, softfail/quarantine scoring |
+| 🔒 Security | ✅ API key leak prevention, file-size limits, attachment filename sanitisation |
+| 📚 Docs & Testing | ✅ Test suite, `.env.example`, secrets-management guidance |
+| ✨ Enhancements | ⬜ Tracking pixel filtering, parallelised API enrichment — **not yet shipped**; enrichment is still sequential |
+| 🐛 Still open | ⬜ `--output` path validation (#12), address-vs-domain defanging (#18) |
 
 ### 🚀 Version 2.0 — Campaign Intelligence Platform *(planned)*
 The defining upgrade: **v1 analyzes one email, v2 analyzes a campaign.**
@@ -249,7 +249,7 @@ The defining upgrade: **v1 analyzes one email, v2 analyzes a campaign.**
 | 🏗️ Architecture | Batch mode, async enrichment, IOC caching, installable package |
 | 🧠 Intelligence | Campaign clustering, WHOIS/domain age, URL unshortening, phishing lure scoring |
 | 🔗 Integrations | URLhaus, Shodan, MISP push, Webhook/API mode |
-| 📄 Output | HTML reports, STIX 2.1 export, GitHub Actions CI, Docker image |
+| 📄 Output | HTML reports, STIX 2.1 export, Docker image |
 
 ➡️ [View the full roadmap →](ROADMAP.md)
 
