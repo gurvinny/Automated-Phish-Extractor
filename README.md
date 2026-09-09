@@ -286,4 +286,8 @@ The defining upgrade: **v1 analyzes one email, v2 analyzes a campaign.**
 
 <div align="center">
   <i>Built by <a href="https://github.com/gurvinny">@gurvinny</a></i>
+  <br/>
+  <sub>Part of a security portfolio &mdash; see
+  <a href="https://github.com/gurvinny/security-analyst-portfolio">security-analyst-portfolio</a>
+  for the investigations, detection logic and incident-response playbooks alongside this tool.</sub>
 </div>
