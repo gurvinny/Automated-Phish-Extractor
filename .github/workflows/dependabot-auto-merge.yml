@@ -34,16 +34,21 @@ jobs:
           UPDATE="${{ steps.meta.outputs.update-type }}"
           ECO="${{ steps.meta.outputs.package-ecosystem }}"
           NEW="${{ steps.meta.outputs.new-version }}"
+          GROUP="${{ steps.meta.outputs.dependency-group }}"
           OK=false
           if [ "$UPDATE" = "version-update:semver-patch" ]; then
             OK=true
+          elif [ -n "$GROUP" ]; then
+            # A grouped PR reports one aggregate version, so a 0.x minor can
+            # hide inside it. Only patch groups are auto-merged.
+            OK=false
           elif [ "$UPDATE" = "version-update:semver-minor" ] \
             && [ "$ECO" != "docker" ] \
             && [ "${NEW#0.}" = "$NEW" ]; then
             OK=true
           fi
           echo "ok=$OK" >> "$GITHUB_OUTPUT"
-          echo "$ECO $UPDATE -> $NEW : auto-merge=$OK"
+          echo "$ECO $UPDATE -> ${NEW:-n/a} group=${GROUP:-none} : auto-merge=$OK"
 
       - name: Enable auto-merge
         if: steps.decide.outputs.ok == 'true'
@@ -54,4 +59,4 @@ jobs:
 
       - name: Explain when held
         if: steps.decide.outputs.ok != 'true'
-        run: echo "Held for manual review - major, 0.x minor, or docker non-patch."
+        run: echo "Held for manual review - major, 0.x minor, non-patch group, or docker non-patch."
