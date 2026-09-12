@@ -1,5 +1,6 @@
 import email
 import email.policy
+from email.utils import parseaddr
 import logging
 import os
 import sys
@@ -35,6 +36,52 @@ class TestPhishExtractor(unittest.TestCase):
         domain = "malicious-site.com"
         defanged = phish_extractor.defang_domain(domain)
         self.assertEqual(defanged, "malicious-site[.]com")
+
+    def test_defang_email_defangs_domain_only(self):
+        # The local part must survive intact -- defanging its dots would
+        # corrupt the address rather than just neutralise the link.
+        self.assertEqual(
+            phish_extractor._defang_email("first.last@evil.com"),
+            "first.last@evil[.]com",
+        )
+
+    def test_defang_email_strips_display_name(self):
+        self.assertEqual(
+            phish_extractor._defang_email('"Billing Dept" <ap@evil.co.uk>'),
+            "ap@evil[.]co[.]uk",
+        )
+
+    def test_defang_email_handles_bare_domain_and_empty(self):
+        self.assertEqual(phish_extractor._defang_email("evil.com"), "evil[.]com")
+        self.assertEqual(phish_extractor._defang_email(""), "")
+
+    def test_report_defangs_recipient_address(self):
+        """Regression guard: To was previously emitted un-defanged, so a
+        report carried a live clickable recipient address."""
+        path = SAMPLES / "malicious" / "credential-phish.eml"
+        msg = phish_extractor.parse_eml(path)
+        headers = phish_extractor.extract_headers(msg)
+        report = phish_extractor.build_report(
+            source_file=path.name,
+            headers=headers,
+            iocs=phish_extractor.extract_iocs(phish_extractor.get_body_text(msg)),
+            attachments=[],
+            intel=[],
+            risk="HIGH",
+        )
+        markdown = phish_extractor.report_to_markdown(report)
+        rows = {
+            line.split("|")[1].strip(): line
+            for line in markdown.splitlines()
+            if line.startswith("| **")
+        }
+        # Each address row must carry a defanged domain and no live one.
+        # safe_md escapes the brackets, so the rendered form is \[.\].
+        for field in ("**From**", "**To**", "**Return-Path**"):
+            row = rows[field]
+            self.assertIn("\\[.\\]", row, f"{field} row was not defanged: {row}")
+            self.assertNotIn("@yourcompany.com", row)
+            self.assertNotIn("@paypal-support-update.com", row)
 
     def test_parse_eml_headers(self):
         sample_eml = SAMPLES / "malicious" / "credential-phish.eml"
