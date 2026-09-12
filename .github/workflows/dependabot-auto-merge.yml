@@ -1,0 +1,57 @@
+# Dependabot auto-merge
+# Author: gurvinny
+#
+# Merges Dependabot PRs only once the branch's required status checks pass.
+# `gh pr merge --auto` is what waits; it is only meaningful because the
+# ruleset on the default branch declares required checks. Without those the
+# merge happens immediately and nothing is actually tested.
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Patch is always safe. Minor is safe only above 0.x, because a 0.x
+      # minor is a breaking change by semver. Docker tags do not follow
+      # semver at all -- "3.11-slim" to "3.14-slim" reads as a minor but is
+      # three Python feature releases -- so docker is held to patch only.
+      - name: Decide
+        id: decide
+        run: |
+          UPDATE="${{ steps.meta.outputs.update-type }}"
+          ECO="${{ steps.meta.outputs.package-ecosystem }}"
+          NEW="${{ steps.meta.outputs.new-version }}"
+          OK=false
+          if [ "$UPDATE" = "version-update:semver-patch" ]; then
+            OK=true
+          elif [ "$UPDATE" = "version-update:semver-minor" ] \
+            && [ "$ECO" != "docker" ] \
+            && [ "${NEW#0.}" = "$NEW" ]; then
+            OK=true
+          fi
+          echo "ok=$OK" >> "$GITHUB_OUTPUT"
+          echo "$ECO $UPDATE -> $NEW : auto-merge=$OK"
+
+      - name: Enable auto-merge
+        if: steps.decide.outputs.ok == 'true'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Explain when held
+        if: steps.decide.outputs.ok != 'true'
+        run: echo "Held for manual review - major, 0.x minor, or docker non-patch."
