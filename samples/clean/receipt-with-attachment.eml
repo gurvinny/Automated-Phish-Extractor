@@ -1,0 +1,32 @@
+Delivered-To: user@example.com
+Return-Path: <receipts@billing.example.org>
+Authentication-Results: mx.example.com;
+    spf=pass smtp.mailfrom=billing.example.org;
+    dkim=pass header.d=billing.example.org;
+    dmarc=pass (p=reject) header.from=billing.example.org
+Received: from mail.billing.example.org (mail.billing.example.org [198.51.100.22])
+    by mx.example.com with ESMTPS id 3c8e1f7a
+    for <user@example.com>; Wed, 11 Mar 2026 16:45:10 -0400
+From: "Example Org Billing" <receipts@billing.example.org>
+To: user@example.com
+Subject: Receipt for order 55120
+Date: Wed, 11 Mar 2026 16:45:10 -0400
+Message-ID: <3c8e1f7a.receipt@billing.example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_Rcpt_1180_5522"
+
+------=_Rcpt_1180_5522
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Thanks for your order. Your receipt is attached.
+
+Order details: https://billing.example.org/orders/55120
+
+------=_Rcpt_1180_5522
+Content-Type: application/pdf; name="receipt-55120.pdf"
+Content-Disposition: attachment; filename="receipt-55120.pdf"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyBhIHN5bnRoZXRpYyByZWNlaXB0IGF0dGFjaG1lbnQgZm9yIHRlc3Rpbmcu
+------=_Rcpt_1180_5522--

@@ -1,8 +1,8 @@
 rule Phishing_Invoice_78291 {
     meta:
         author = "gurvinny"
-        description = "Detects the specific malicious PDF attachment (Invoice_78291.pdf) or its base64 payload from mock_phish.eml"
-        date = "2024-05-29"
+        description = "Detects the synthetic PDF attachment (Invoice_78291.pdf) or its base64 payload from samples/malicious/credential-phish.eml"
+        date = "2026-03-11"
         hash1 = "71e4a2e3c287d386ca40134b5bb70c947f4d8bd9cb4265d1bd72bb3d3e8302a5"
 
     strings:

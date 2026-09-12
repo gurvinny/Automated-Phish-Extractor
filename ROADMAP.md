@@ -4,10 +4,10 @@
 
 **Planned fixes, enhancements, and future direction**
 
-[![Version 1 Beta](https://img.shields.io/badge/version-1.0--beta-blue.svg?logo=github&logoColor=white)]()
-[![Version 2](https://img.shields.io/badge/version-2.0-orange.svg?logo=github&logoColor=white)]()
-[![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Version](https://img.shields.io/badge/version-1.0--beta-blue?style=for-the-badge&logo=github&logoColor=white)](ROADMAP.md)
+[![Issues](https://img.shields.io/github/issues/gurvinny/Automated-Phish-Extractor?style=for-the-badge&logo=github&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/issues)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <em>This document tracks what's being fixed in v1 and what's being built in v2.</em>
@@ -25,35 +25,35 @@
 
 ### 🐛 Bug Fixes
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#7](https://github.com/gurvinny/Automated-Phish-Extractor/issues/7) | IPv6 regex misses compressed and mixed-notation addresses | `IPV6_PATTERN` fails to match `2001:db8::1`, `::ffff:192.0.2.1`, and similar compressed forms |
-| [#10](https://github.com/gurvinny/Automated-Phish-Extractor/issues/10) | Risk scoring ignores SPF softfail and DMARC quarantine | `calculate_risk()` only counts `fail` — `softfail` and `quarantine` contribute zero to the score |
-| [#12](https://github.com/gurvinny/Automated-Phish-Extractor/issues/12) | `--output` path not validated | Format/extension mismatch silently produces garbled output |
-| [#16](https://github.com/gurvinny/Automated-Phish-Extractor/issues/16) | False positive domain extraction | File extensions (`.php`, `.html`, `.asp`) matched as domain IOCs |
-| [#17](https://github.com/gurvinny/Automated-Phish-Extractor/issues/17) | No IPv6 private/loopback address filtering | Private IPv6 addresses bypass the routable check and reach API enrichment |
-| [#18](https://github.com/gurvinny/Automated-Phish-Extractor/issues/18) | Inconsistent email header defanging | `From` is defanged but `To` is not; `defang_domain()` called on full `user@host` strings |
-| [#6](https://github.com/gurvinny/Automated-Phish-Extractor/issues/6) | IOC extraction never scans email headers | `Received`, `Reply-To`, and `X-Originating-IP` headers are ignored during IOC extraction |
-| [#5](https://github.com/gurvinny/Automated-Phish-Extractor/issues/5) | No rate-limit back-off between API calls | HTTP 429 responses are reported but never retried with exponential back-off |
-
----
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#5](https://github.com/gurvinny/Automated-Phish-Extractor/issues/5) | No rate-limit back-off between API calls | HTTP 429 responses are reported but never retried with exponential back-off | ✅ Fixed — `_with_rate_limit_backoff()` + a shared `RateLimitBudget` |
+| [#6](https://github.com/gurvinny/Automated-Phish-Extractor/issues/6) | IOC extraction never scans email headers | `Received`, `Reply-To`, and `X-Originating-IP` headers are ignored during IOC extraction | ✅ Fixed — `build_header_ioc_blob()`, scoped to sender-controlled headers only |
+| [#7](https://github.com/gurvinny/Automated-Phish-Extractor/issues/7) | IPv6 regex misses compressed and mixed-notation addresses | `IPV6_PATTERN` fails to match `2001:db8::1`, `::ffff:192.0.2.1`, and similar compressed forms | ✅ Fixed — compressed forms are matched first, or the address is truncated |
+| [#10](https://github.com/gurvinny/Automated-Phish-Extractor/issues/10) | Risk scoring ignores SPF softfail and DMARC quarantine | `calculate_risk()` only counts `fail` | ✅ Fixed — softfail and quarantine each score `+1` |
+| [#16](https://github.com/gurvinny/Automated-Phish-Extractor/issues/16) | False positive domain extraction | File extensions (`.php`, `.html`, `.asp`) matched as domain IOCs | ✅ Fixed — `_FILE_EXT_RE` |
+| [#17](https://github.com/gurvinny/Automated-Phish-Extractor/issues/17) | No IPv6 private/loopback address filtering | Private IPv6 addresses bypass the routable check and reach API enrichment | ✅ Fixed — `_is_routable_ipv6()`, applied before any request |
+| [#12](https://github.com/gurvinny/Automated-Phish-Extractor/issues/12) | `--output` path not validated | Format/extension mismatch silently produces garbled output | ⬜ Open |
+| [#18](https://github.com/gurvinny/Automated-Phish-Extractor/issues/18) | Inconsistent email header defanging | `defang_domain()` is called on full `user@host` strings, so the local-part dot is defanged too | 🟨 Partly fixed — `To` is now defanged; the address-vs-domain split remains |
 
 ### 🔒 Security
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#4](https://github.com/gurvinny/Automated-Phish-Extractor/issues/4) | API keys may leak into DEBUG logs | Keys passed via headers can appear in `requests` debug output written to stderr or syslog |
-| [#8](https://github.com/gurvinny/Automated-Phish-Extractor/issues/8) | No file-size limit | Crafted oversized `.eml` files can exhaust memory (DoS vector) |
-| [#9](https://github.com/gurvinny/Automated-Phish-Extractor/issues/9) | Attachment filename not sanitised | Raw `Content-Disposition` filename flows unsanitised — path traversal risk |
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#4](https://github.com/gurvinny/Automated-Phish-Extractor/issues/4) | API keys may leak into DEBUG logs | Keys passed via headers can appear in `requests` debug output written to stderr or syslog | ✅ Fixed (#26) |
+| [#8](https://github.com/gurvinny/Automated-Phish-Extractor/issues/8) | No file-size limit | Crafted oversized `.eml` files can exhaust memory (DoS vector) | ✅ Fixed (#25) |
+| [#9](https://github.com/gurvinny/Automated-Phish-Extractor/issues/9) | Attachment filename not sanitised | Raw `Content-Disposition` filename flows unsanitised — path traversal risk | ✅ Fixed (#24) |
 
 ---
 
 ### ✨ Enhancements
 
-| # | Issue | Description |
-|---|-------|-------------|
-| [#13](https://github.com/gurvinny/Automated-Phish-Extractor/issues/13) | Filter tracking pixels | 1×1 transparent GIF/PNG attachments should be excluded from VT lookups and reports |
-| [#14](https://github.com/gurvinny/Automated-Phish-Extractor/issues/14) | Parallelise API enrichment | Replace sequential blocking calls with `ThreadPoolExecutor` to reduce total enrichment time |
+Neither of these has shipped.
+
+| # | Issue | Description | Status |
+|---|-------|-------------|--------|
+| [#13](https://github.com/gurvinny/Automated-Phish-Extractor/issues/13) | Filter tracking pixels | 1×1 transparent GIF/PNG attachments should be excluded from VT lookups and reports | ⬜ Open |
+| [#14](https://github.com/gurvinny/Automated-Phish-Extractor/issues/14) | Parallelise API enrichment | Replace sequential blocking calls with `ThreadPoolExecutor` to reduce total enrichment time | ⬜ Open — enrichment is currently strictly sequential |
 
 ---
 
@@ -144,5 +144,5 @@ v2.0  ░░░░░░░░░░░░░░░░░░  Campaign intellige
 ---
 
 <div align="center">
-  <i>Developed with ❤️ by <a href="https://github.com/gurvinny">Gurvin Singh</a></i>
+  <i>Built by <a href="https://github.com/gurvinny">@gurvinny</a></i>
 </div>

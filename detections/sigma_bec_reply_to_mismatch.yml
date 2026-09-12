@@ -1,0 +1,35 @@
+title: Reply-To Domain Differs From Sender Domain
+id: 6f3a9c21-8d4e-4a17-b5c9-2e7f81a4d330
+status: experimental
+description: |
+  Detects mail where the Reply-To domain does not match the From domain, so a
+  reply leaves the organisation the message claims to come from. This is the
+  core mechanic of business email compromise, which typically carries no URL,
+  no attachment and no malicious infrastructure — meaning reputation feeds and
+  attachment sandboxing see nothing to flag.
+
+  Modelled on samples/malicious/bec-wire-transfer.eml, which passes SPF and
+  DKIM and is invisible to IOC-based scoring.
+references:
+    - https://attack.mitre.org/techniques/T1566/002/
+author: "@gurvinny"
+date: 2026-03-11
+tags:
+    - attack.initial_access
+    - attack.t1566
+    - attack.t1566.002
+logsource:
+    category: email
+    product: email_gateway
+detection:
+    selection:
+        ReplyTo|contains: '@'
+    filter_same_domain:
+        ReplyToDomain|fieldref: FromDomain
+    condition: selection and not filter_same_domain
+falsepositives:
+    - Mailing lists, ticketing systems and marketing platforms that legitimately
+      route replies to a separate service domain. Baseline these senders first.
+    - Bounce and no-reply subdomains of the sending organisation; compare on the
+      registrable domain rather than the full hostname.
+level: medium

@@ -1,0 +1,28 @@
+Subject: =?utf-8?B?VGVzdCDwn5KpIG1hbGZvcm1lZCBoZWFkZXI=?=
+From: broken@
+To: user@example.com
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+--outer
+Content-Type: multipart/alternative; boundary="inner"
+
+--inner
+Content-Type: text/plain; charset="definitely-not-a-charset"
+Content-Transfer-Encoding: 8bit
+
+Body with an odd charset and a link http://nested.example.net/a
+--inner
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGJvZHk+PHA+bmVzdGVkPC9wPjwvYm9keT48L2h0bWw+
+--inner--
+
+--outer
+Content-Type: application/octet-stream; name="../../etc/passwd"
+Content-Disposition: attachment; filename="../../etc/passwd"
+Content-Transfer-Encoding: base64
+
+c3ludGhldGljIHRyYXZlcnNhbCBmaWxlbmFtZSB0ZXN0
+--outer--

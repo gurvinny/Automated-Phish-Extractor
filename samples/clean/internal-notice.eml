@@ -1,0 +1,22 @@
+Delivered-To: staff@example.com
+Return-Path: <facilities@example.com>
+Authentication-Results: mx.example.com;
+    spf=pass smtp.mailfrom=example.com;
+    dkim=pass header.d=example.com;
+    dmarc=pass (p=reject) header.from=example.com
+Received: from smtp.example.com (smtp.example.com [198.51.100.4])
+    by mx.example.com with ESMTP id 9f1c0d55
+    for <staff@example.com>; Fri, 13 Mar 2026 11:30:00 -0400
+From: "Facilities" <facilities@example.com>
+To: staff@example.com
+Subject: Lift maintenance on Friday
+Date: Fri, 13 Mar 2026 11:30:00 -0400
+Message-ID: <9f1c0d55.facilities@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+The east lift will be out of service on Friday between 09:00 and 13:00
+for scheduled maintenance. Please use the west stairwell.
+
+Facilities

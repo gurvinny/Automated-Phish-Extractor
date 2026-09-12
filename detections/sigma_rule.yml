@@ -1,9 +1,12 @@
 title: DMARC Failure and Urgent Phishing Subject Detected
 id: e34f78d9-2e1c-4b5a-9f8e-7c6d5b4a3c2d
 status: experimental
-description: Detects email gateway logs where a DMARC failure is recorded and the subject contains a common phishing lure "URGENT: Your account has been temporarily restricted", matching our mock_phish.eml.
+description: >-
+    Detects email gateway logs where a DMARC failure is recorded and the subject
+    contains a common phishing lure, matching
+    samples/malicious/credential-phish.eml.
 author: gurvinny
-date: 2024/05/29
+date: 2026-03-11
 logsource:
     category: email
     product: email_gateway

@@ -1,0 +1,9 @@
+From: "Report Breaker" <a@evil.example.net>
+To: user@example.com
+Subject: Table | pipe ` + [link](http://x.example.net) <img src=x>
+Date: Sat, 14 Mar 2026 10:00:00 -0400
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Subject above contains markdown control characters to verify report escaping.
+A URL for extraction: http://markdown-escape-test.example.net/path

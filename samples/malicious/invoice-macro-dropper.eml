@@ -1,0 +1,41 @@
+Delivered-To: ap@example.com
+Return-Path: <billing@invoice-delivery-secure.example.net>
+Authentication-Results: mx.example.com;
+    spf=softfail (domain of invoice-delivery-secure.example.net does not designate 2001:db8:3c4d:15::1a2b as permitted sender) smtp.mailfrom=billing@invoice-delivery-secure.example.net;
+    dkim=fail (body hash did not verify) header.d=invoice-delivery-secure.example.net;
+    dmarc=fail (p=quarantine) header.from=accounts-payable.example.org
+Received: from relay.invoice-delivery-secure.example.net (relay.invoice-delivery-secure.example.net [2001:db8:3c4d:15::1a2b])
+    by mx.example.com with ESMTPS id 77f3c1a9
+    for <ap@example.com>; Mon, 09 Mar 2026 08:14:22 -0400
+From: "Accounts Payable" <billing@accounts-payable.example.org>
+Reply-To: <remittance@payment-portal-verify.example.net>
+To: ap@example.com
+Subject: Outstanding invoice INV-40921 - payment overdue
+Date: Mon, 09 Mar 2026 08:14:22 -0400
+Message-ID: <40921.1741521262@invoice-delivery-secure.example.net>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_Part_44821_9931"
+
+------=_Part_44821_9931
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hello,
+
+Our records show invoice INV-40921 remains unpaid. The attached statement
+contains the updated remittance details. If the document does not open,
+enable editing to view the full breakdown.
+
+You can also review the balance directly at
+https://payment-portal-verify.example.net/account/inv40921
+
+Regards,
+Accounts Payable
+
+------=_Part_44821_9931
+Content-Type: application/vnd.ms-word.document.macroEnabled.12; name="INV-40921.docm"
+Content-Disposition: attachment; filename="INV-40921.docm"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyBhIHN5bnRoZXRpYyBzYW1wbGUgYXR0YWNobWVudC4gTm90IGEgcmVhbCBtYWNyby4=
+------=_Part_44821_9931--

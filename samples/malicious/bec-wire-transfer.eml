@@ -1,0 +1,29 @@
+Delivered-To: finance@example.com
+Return-Path: <ceo.office@executive-mail.example.net>
+Authentication-Results: mx.example.com;
+    spf=pass smtp.mailfrom=executive-mail.example.net;
+    dkim=pass header.d=executive-mail.example.net;
+    dmarc=quarantine (p=quarantine sp=quarantine) header.from=example.com
+Received: from smtp.executive-mail.example.net (smtp.executive-mail.example.net [203.0.113.77])
+    by mx.example.com with ESMTP id b41d8e02
+    for <finance@example.com>; Tue, 10 Mar 2026 07:02:11 -0400
+From: "Dana Whitfield (CEO)" <dana.whitfield@example.com>
+Reply-To: "Dana Whitfield" <d.whitfield@executive-mail.example.net>
+To: finance@example.com
+Subject: Confidential - wire request before noon
+Date: Tue, 10 Mar 2026 07:02:11 -0400
+Message-ID: <b41d8e02.9931@executive-mail.example.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Are you at your desk?
+
+I need a transfer processed before noon for an acquisition deposit. The
+counterparty is expecting it today and I am in meetings until 11:30, so
+please do not loop in anyone else until it clears.
+
+Reply here and I will send the account details.
+
+Dana
+Sent from my iPhone

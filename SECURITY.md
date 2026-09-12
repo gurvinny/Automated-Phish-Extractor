@@ -4,9 +4,10 @@
 
 **Phish Extractor — Responsible Disclosure & Threat Modeling**
 
-[![Security Policy](https://img.shields.io/badge/Security-Enabled-brightgreen.svg?logo=github&logoColor=white)]()
-[![Python Supported](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-[![Vulnerability Reporting](https://img.shields.io/badge/Reporting-Private-red.svg)](mailto:gurvin240@gmail.com)
+[![CI](https://img.shields.io/github/actions/workflow/status/gurvinny/Automated-Phish-Extractor/pytest.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/gurvinny/Automated-Phish-Extractor/actions/workflows/pytest.yml)
+[![Security Policy](https://img.shields.io/badge/security-policy_active-2ea043?style=for-the-badge&logo=github&logoColor=white)](SECURITY.md)
+[![Python](https://img.shields.io/badge/python-3.10_--_3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Reporting](https://img.shields.io/badge/reporting-private_advisory-red?style=for-the-badge)](https://github.com/gurvinny/Automated-Phish-Extractor/security/advisories/new)
 
 <p align="center">
   Maintaining a secure environment for automated threat intelligence and SOC operations.
@@ -22,7 +23,7 @@ The following versions of **Phish Extractor** receive security updates. As this 
 
 | Version | Supported          | Python Version | Status                     |
 | ------- | ------------------ | -------------- | -------------------------- |
-| `1.0.x` | :white_check_mark: | `3.10+`        | Active Maintenance         |
+| `1.0.x` | :white_check_mark: | `3.10` – `3.13` | Active Maintenance         |
 | `< 1.0` | :x:                | N/A            | Unsupported Legacy         |
 
 ---
@@ -49,8 +50,13 @@ This script parses untrusted `.eml` files and performs network I/O. **Never run 
 ### 🔑 Secret Management & Contribution
 We utilize a `.env` system for API keys. 
 * **Contributors:** Ensure `.env` is listed in your `.gitignore` before pushing code. 
-* **Reviewers:** Every Pull Request is screened for "secret leakage" using manual review and (ideally) automated hooks. 
+* **Log Redaction:** All logging handlers utilize an automated `SecretRedactionFilter` that strips configured API keys (`VT_API_KEY`, `ABUSEIPDB_API_KEY`) before log records are emitted.
+* **Reviewers:** Every Pull Request is screened for "secret leakage" using manual review and automated hooks. 
 * **Leaked Keys:** If a key is accidentally committed, **rotate it immediately.**
+
+### 🛡️ Input Sanitization & DoS Mitigation
+* **File Size Cap:** Input `.eml` files are restricted by `MAX_EML_SIZE_MB` (default: 25 MB) to prevent memory exhaustion DoS vectors from malicious oversized email samples.
+* **Path Traversal Protection:** Attachment filenames are sanitized (`sanitize_attachment_filename`) to strip directory separators (`/`, `\`), relative path components (`..`), and control characters prior to display or downstream processing.
 
 ### 📡 Operational Security (OPSEC)
 Querying external APIs (VirusTotal, AbuseIPDB) alerts third parties that an IOC is being investigated. 
