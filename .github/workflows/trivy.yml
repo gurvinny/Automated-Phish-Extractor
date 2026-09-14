@@ -1,0 +1,58 @@
+# Trivy filesystem scan
+# Author: gurvinny
+#
+# CodeQL reads the code this repo writes. It does not read the vendored
+# packages under deps/, does not check for committed credentials, and has no
+# view of dependency advisories. Trivy covers that gap.
+#
+# There is no Dockerfile here, so there is no base-image job -- only the
+# filesystem scan.
+#
+# exit-code is 0 on purpose: an advisory in a vendored dependency should be
+# reported in the Security tab, not block a merge on code unrelated to it.
+name: Trivy
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: "52 4 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo:
+    name: Trivy repository scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Scan the filesystem
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
