@@ -1,0 +1,52 @@
+# CodeQL static analysis
+# Author: gurvinny
+#
+# Advanced setup (a committed workflow) rather than GitHub's default setup.
+# Default setup skips analysis when no analysable code changed, which is every
+# lockfile-only dependency PR, so its context never reports and cannot be used
+# as a required status check. A committed workflow reports on every PR and is
+# therefore eligible for the ruleset.
+#
+# This repo parses untrusted .eml files and talks to external enrichment APIs,
+# so the injection and unsafe-deserialisation queries are the point.
+name: CodeQL
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Weekly, so advisories landing against unchanged code still surface.
+    - cron: "19 4 * * 2"
+
+# Least privilege: elevated only where the SARIF upload needs it.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          config-file: ./.github/codeql/codeql-config.yml
+          # Security-focused; the quality suite adds style noise on a repo this
+          # size without surfacing more real issues.
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"

@@ -1,0 +1,13 @@
+# CodeQL scope
+# Author: gurvinny
+#
+# `deps/` holds vendored third-party packages so the tests can run without a
+# pip install. Scanning them reports findings in libraries this repo does not
+# maintain and cannot fix, which buries the findings that matter in the code
+# that is actually ours.
+name: Phish Extractor CodeQL config
+
+paths-ignore:
+  - deps
+  - "**/__pycache__"
+  - samples
